@@ -1,0 +1,9 @@
+[package]
+name = "zkstark"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+num-traits = "0.2.15"
+num-modular = "0.5.1"
+ff = { version = "0.12", features = ["derive"] }
