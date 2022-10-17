@@ -1,0 +1,1 @@
+Experimenting with zkstarks, might try to create the world's first zero-knowledge NES, who knows? Currently following https://github.com/starkware-industries/stark101/tree/master/tutorial.
