@@ -66,7 +66,6 @@ impl<const P: u32> Gf<P> {
             .collect();
 
         // Test for all x^exp != 1 (mod p) for 2 < x < P, exp <- exps
-        let mut found = 0;
         'l1: for x in 2..P {
             let x = MontgomeryInt::new(x, &P);
             for exp in &exps {
@@ -74,8 +73,6 @@ impl<const P: u32> Gf<P> {
                     continue 'l1;
                 }
             }
-            found += 1;
-            //println!("{}", x.residue());
             return Self(x);
         }
         unreachable!();
