@@ -5,7 +5,7 @@ use num_traits::Inv;
 use std::ops::Neg;
 
 #[derive(PartialEq, Clone, Copy, Debug)]
-pub struct Gf<const P: u32>(MontgomeryInt<u32>);
+pub struct Gf<const P: u32>(pub MontgomeryInt<u32>);
 
 impl<const P: u32> From<i32> for Gf<P> {
     fn from(f: i32) -> Self {
@@ -23,13 +23,16 @@ impl<const P: u32> From<u32> for Gf<P> {
     }
 }
 
+impl<const P: u32> Pow<u32> for Gf<P> {
+    type Output = Self;
+    fn pow(self, rhs: u32) -> Self::Output {
+        Self(self.0.pow(rhs))
+    }
+}
+
 impl<const P: u32> Gf<P> {
     pub fn residue(self) -> u32 {
         self.0.residue()
-    }
-
-    pub fn pow(self, rhs: u32) -> Self {
-        Self(self.0.pow(rhs))
     }
 
     pub fn order(self) -> u32 {

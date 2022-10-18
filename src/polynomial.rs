@@ -1,13 +1,17 @@
 use num_traits::identities::{One, Zero};
-use num_traits::Inv;
+use num_traits::{Inv, Pow};
 use std::ops::{Add, Mul, MulAssign, Neg, Sub};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Polynomial<T>(pub Vec<T>);
 
 impl<T> Polynomial<T> {
     pub fn map<I>(self, f: impl Fn(T) -> I) -> Polynomial<I> {
         Polynomial(self.0.into_iter().map(|t| f(t)).collect())
+    }
+
+    fn len(&self) -> usize {
+        self.0.len()
     }
 
     pub fn new_degree1(c0: T) -> Self {
@@ -19,9 +23,17 @@ impl<T> Polynomial<T> {
     }
 }
 
-impl<T> Polynomial<T> {
-    fn len(&self) -> usize {
-        self.0.len()
+impl<T> Polynomial<T>
+where
+    T: Add<T, Output = T> + Mul<T, Output = T> + Pow<u32, Output = T> + Copy + Zero,
+{
+    pub fn solve(&self, t: T) -> T {
+        self.0
+            .iter()
+            .enumerate()
+            .fold(T::zero(), |acc, (degree, coeff)| {
+                acc + *coeff * t.pow(degree as u32)
+            })
     }
 }
 
@@ -97,7 +109,7 @@ where
     }
 }
 
-pub fn lagrange<T>(points: Vec<(T, T)>) -> Vec<Polynomial<T>>
+pub fn lagrange<T>(points: Vec<(T, T)>) -> Polynomial<T>
 where
     T: Inv<Output = T>
         + Neg<Output = T>
@@ -106,7 +118,9 @@ where
         + Copy
         + Mul<T, Output = T>
         + Sub<T, Output = T>
-        + PartialEq,
+        + Pow<u32, Output = T>
+        + PartialEq
+        + std::fmt::Debug,
 {
     // Generate non-normalized basis polynomials
     let mut bases: Vec<Polynomial<T>> = {
@@ -126,29 +140,39 @@ where
         std::iter::zip(ll, lr).map(|(l, r)| l * r).collect()
     };
 
-    bases
-    //println!("{:?}", bases);
-
-    // Collect normalizing factors in 'mod p'
-    /*let nf: Vec<T> = points
-        .iter()
-        .map(|(x, _)| {
-            points
-                .iter()
-                .filter(|(ix, _)| *ix != *x)
-                .map(|(ix, _)| *x - *ix)
-                .reduce(|acc, n| acc * n)
-                .unwrap()
-        })
-        .map(|x: T| x.inv())
-        .collect();
-
-    // Apply factors to "normalize" bases
-    for (i, poly) in bases.iter_mut().enumerate() {
-        let y = points[i].1;
-        *poly *= nf[i] * y;
+    // Normalize
+    for (poly, &(tx, ty)) in bases.iter_mut().zip(&points) {
+        *poly *= poly.solve(tx).inv() * ty;
     }
 
     // Add all bases together
-    bases.into_iter().reduce(|acc, poly| acc + poly).unwrap()*/
+    bases.into_iter().reduce(|acc, poly| acc + poly).unwrap()
+}
+
+#[test]
+fn lagrange_test() {
+    type F = crate::field::Gf<7>;
+
+    // Pick 4 points
+    let p0 = (F::from(0), F::from(2));
+    let p1 = (F::from(1), F::from(4));
+    let p2 = (F::from(2), F::from(3));
+    let p3 = (F::from(3), F::from(1));
+
+    // Generate lagrange for those 4 points
+    let poly = lagrange(vec![p0, p1, p2, p3]);
+
+    // Solve for the remaining points in GF7
+    let p4x = F::from(4);
+    let p4 = (p4x, poly.solve(p4x));
+    let p5x = F::from(5);
+    let p5 = (p5x, poly.solve(p5x));
+    let p6x = F::from(6);
+    let p6 = (p6x, poly.solve(p6x));
+
+    // Assert the lagrange for combinations of points are equal
+    assert_eq!(poly, lagrange(vec![p0, p3, p5, p6]));
+    assert_eq!(poly, lagrange(vec![p1, p6, p3, p2]));
+    assert_eq!(poly, lagrange(vec![p3, p2, p1, p0]));
+    assert_eq!(poly, lagrange(vec![p6, p5, p4, p3]));
 }
