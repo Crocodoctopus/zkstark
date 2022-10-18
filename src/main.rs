@@ -23,23 +23,33 @@ fn main() {
     assert!(trace[1].residue() == super_secret);
     assert!(trace[1022].residue() == 2338775057);
 
-    // Generator for a multiplicative group of 3221225472 elements
-    let generator = F::generator();
+    // Generate a primitive root of F_3221225473
+    let primitive_root = F::generator();
 
-    // Generator for a multiplicative group of 1024 elements
-    let generator = generator.pow(3145728);
+    // Create generators for 1024 and 8192 element cyclic groups
+    let generator_g = primitive_root.pow(3145728);
+    let generator_h = primitive_root.pow(393216);
 
-    // Ensure the generator is of the correct order
-    assert!(generator.order() == 1024);
+    // Assert generators are of the correct order
+    assert_eq!(generator_g.order(), 1024);
+    assert_eq!(generator_h.order(), 8192);
 
-    // Generate 1024 cycle group group
-    let group: Vec<(F, F)> = (0..1024).map(|n| (F::from(n), generator.pow(n))).collect();
+    // Generate lagrange polynomial over G
+    let poly = polynomial::lagrange(
+        &(0..1024)
+            .map(|n| (F::from(n), generator_g.pow(n)))
+            .collect(),
+    );
 
-    // Create interpolating polynomial from the 1024 cyclic group
-    let poly = polynomial::lagrange(&group);
+    // Assert that the lagrange poly hits every point in G
+    (0..1024)
+        .map(|n| (F::from(n), generator_g.pow(n)))
+        .for_each(|(x, y)| assert_eq!(poly.solve(x), y));
 
-    // Assert that the lagrange poly hits every points in 1024 cyclic group
-    for (x, y) in group {
-        assert_eq!(poly.solve(x), y);
-    }
+    // Solve polynomial over larger domain (H shifted by 1)
+    let eval: Vec<F> = (0..8192)
+        .map(|n| generator_h.pow(n)) // generate cyclic group
+        .map(|n| generator_h * n) // shift
+        .map(|n| poly.solve(n)) // evaluate
+        .collect();
 }

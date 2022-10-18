@@ -129,7 +129,7 @@ where
         + Mul<T, Output = T>
         + Sub<T, Output = T>
         + Pow<u32, Output = T>
-        + PartialEq
+        + PartialEq,
 {
     // Generate non-normalized basis polynomials
     let mut bases: Vec<Polynomial<T>> = {
