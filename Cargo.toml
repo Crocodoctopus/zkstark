@@ -6,4 +6,5 @@ edition = "2021"
 [dependencies]
 num-traits = "0.2.15"
 num-modular = "0.5.1"
-sha256 = "1.1.1"
+sha2 = "0.10.6"
+hex-literal = "0.3.4"

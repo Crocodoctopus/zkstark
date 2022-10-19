@@ -1,4 +1,5 @@
 mod field;
+mod merkle;
 mod polynomial;
 
 use num_traits::Pow;
@@ -35,8 +36,8 @@ fn main() {
     assert_eq!(generator_h.order(), 8192);
 
     // Domains
-    let g_domain = (0..1023).map(|n| generator_g.pow(n));
-    let h_domain = (0..8191).map(|n| generator_h.pow(n));
+    let g_domain = (0..trace.len()).map(|n| generator_g.pow(n as u32));
+    let h_domain = (0..8192).map(|n| generator_h.pow(n));
 
     // Generate lagrange polynomial
     let poly = polynomial::lagrange(
@@ -47,8 +48,9 @@ fn main() {
     g_domain.clone().zip(&trace).for_each(|(x, y)| assert_eq!(poly.solve(x), *y));
 
     // Solve polynomial over larger domain
-    let eval: Vec<F> = h_domain
-        .map(|n| generator_h * n)
+    let eval: Vec<u32> = h_domain
+        .map(|n| primitive_root * n)
         .map(|n| poly.solve(n))
+        .map(|n| n.residue())
         .collect();
 }
