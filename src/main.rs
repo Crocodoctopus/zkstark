@@ -34,22 +34,21 @@ fn main() {
     assert_eq!(generator_g.order(), 1024);
     assert_eq!(generator_h.order(), 8192);
 
-    // Generate lagrange polynomial over G
+    // Domains
+    let g_domain = (0..1023).map(|n| generator_g.pow(n));
+    let h_domain = (0..8191).map(|n| generator_h.pow(n));
+
+    // Generate lagrange polynomial
     let poly = polynomial::lagrange(
-        &(0..1024)
-            .map(|n| (F::from(n), generator_g.pow(n)))
-            .collect(),
+        &g_domain.clone().zip(&trace).map(|(x, y)| (x, *y)).collect()
     );
 
-    // Assert that the lagrange poly hits every point in G
-    (0..1024)
-        .map(|n| (F::from(n), generator_g.pow(n)))
-        .for_each(|(x, y)| assert_eq!(poly.solve(x), y));
+    // Check that the generated polynomial passes through each point in (G[i], trace[i]) | i < 1023
+    g_domain.clone().zip(&trace).for_each(|(x, y)| assert_eq!(poly.solve(x), *y));
 
-    // Solve polynomial over larger domain (H shifted by 1)
-    let eval: Vec<F> = (0..8192)
-        .map(|n| generator_h.pow(n)) // generate cyclic group
-        .map(|n| generator_h * n) // shift
-        .map(|n| poly.solve(n)) // evaluate
+    // Solve polynomial over larger domain
+    let eval: Vec<F> = h_domain
+        .map(|n| generator_h * n)
+        .map(|n| poly.solve(n))
         .collect();
 }
