@@ -1,5 +1,4 @@
 mod field;
-mod merkle;
 mod polynomial;
 
 use num_traits::Pow;
