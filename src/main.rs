@@ -35,22 +35,26 @@ fn main() {
     assert_eq!(generator_g.order(), 1024);
     assert_eq!(generator_h.order(), 8192);
 
-    // Domains
-    let g_domain = (0..trace.len()).map(|n| generator_g.pow(n as u32));
-    let h_domain = (0..8192).map(|n| generator_h.pow(n));
+    // Generate groups
+    let g: Vec<F> = (0..1024).map(|n| generator_g.pow(n)).collect();
+    let h: Vec<F> = (0..8192).map(|n| generator_h.pow(n)).collect();
 
     // Generate lagrange polynomial
-    let poly = polynomial::lagrange(
-        &g_domain.clone().zip(&trace).map(|(x, y)| (x, *y)).collect()
-    );
+    let poly = polynomial::lagrange(&std::iter::zip(&g, &trace).map(|(&x, &y)| (x, y)).collect());
 
     // Check that the generated polynomial passes through each point in (G[i], trace[i]) | i < 1023
-    g_domain.clone().zip(&trace).for_each(|(x, y)| assert_eq!(poly.solve(x), *y));
+    for (x, y) in std::iter::zip(&g, &trace) {
+        assert_eq!(poly.solve(*x), *y);
+    }
 
-    // Solve polynomial over larger domain
-    let eval: Vec<u32> = h_domain
-        .map(|n| primitive_root * n)
-        .map(|n| poly.solve(n))
-        .map(|n| n.residue())
-        .collect();
+    // Solve polynomial over H, shifted by the primitive root
+    let eval: Vec<F> = h.iter().map(|n| poly.solve(primitive_root * *n)).collect();
+
+    // Assert a few elements of eval
+    assert_eq!(eval[0].residue(), 576067152);
+    assert_eq!(eval[1].residue(), 3100214617);
+    assert_eq!(eval[2].residue(), 2091264768);
+    assert_eq!(eval[8189].residue(), 800520420);
+    assert_eq!(eval[8190].residue(), 1199720174);
+    assert_eq!(eval[8191].residue(), 1076821037);
 }
