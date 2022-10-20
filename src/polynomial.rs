@@ -32,6 +32,7 @@ where
         + PartialEq
         + Clone
         + Copy
+        + std::fmt::Debug,
 {
     fn rdiv(lhs: Self, rhs: Self) -> (Self, Self) {
         // Get degree of each poly
@@ -40,6 +41,7 @@ where
 
         // Return early if division is undoable
         if lhs_degree < rhs_degree {
+            //println!("([], {lhs:?})");
             return (Polynomial::from([]), lhs);
         }
 
@@ -53,7 +55,7 @@ where
         *div.coeff_mut(diff) = lhs_lead / rhs_lead;
 
         // Calculate remainder
-        let r = (lhs - div.clone() * rhs.clone()).reduce();
+        let r = (lhs - &div * &rhs).reduce();
 
         // Reapply division on remainder
         let (div2, r) = Polynomial::rdiv(r, rhs);
@@ -112,6 +114,16 @@ where
     T: Mul<T, Output = T> + Add<T, Output = T> + Copy + Zero,
 {
     type Output = Self;
+    fn mul(self, rhs: Self) -> Self::Output {
+        &self * &rhs
+    }
+}
+
+impl<T> Mul<Self> for &Polynomial<T>
+where
+    T: Mul<T, Output = T> + Add<T, Output = T> + Copy + Zero,
+{
+    type Output = Polynomial<T>;
     fn mul(self, rhs: Self) -> Self::Output {
         let mut out = vec![T::zero(); (self.0.len() - 1) + (rhs.0.len() - 1) + 1];
         for (degree0, coeff0) in self.0.iter().enumerate() {
@@ -257,7 +269,7 @@ fn rdiv_test() {
     let p1 = Polynomial::from([1, 2]); // x +2
 
     // Perform rdiv
-    let (d, r) = Polynomial::rdiv(p0, p1.clone());
+    let (d, r) = Polynomial::rdiv(p0, p1);
 
     // Assert
     assert_eq!(d, Polynomial::from([1, -5])); // x -5
@@ -268,9 +280,20 @@ fn rdiv_test() {
     let p1 = Polynomial::from([1, -3]); // x -3
 
     // Perform rdiv
-    let (d, r) = Polynomial::rdiv(p0, p1.clone());
+    let (d, r) = Polynomial::rdiv(p0, p1);
 
     // Assert
     assert_eq!(d, Polynomial::from([2, 1])); // 2x +1
-    assert_eq!(r, Polynomial::from([2])); // 2
+    assert_eq!(r, Polynomial::from([2])); // 2*/
+
+    // Last two
+    let p0 = Polynomial::from([1, 0, 2, 0, 0, 6, -9]); // x^6 +2x^4 +6x -9
+    let p1 = Polynomial::from([1, 0, 0, 3]); // x^3 +3
+
+    // Perform rdiv
+    let (d, r) = Polynomial::rdiv(p0, p1);
+
+    // Assert
+    assert_eq!(d, Polynomial::from([1, 0, 2, -3])); // x^3 +2x -3
+    assert_eq!(r, Polynomial::from([0])); // 0
 }
