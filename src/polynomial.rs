@@ -1,6 +1,6 @@
 use num_traits::identities::{One, Zero};
 use num_traits::{Inv, Pow};
-use std::ops::{Add, Mul, MulAssign, Neg, Sub};
+use std::ops::{Add, Div, Mul, MulAssign, Neg, Sub};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Polynomial<T>(Vec<T>);
@@ -20,6 +20,46 @@ impl<T> Polynomial<T> {
 
     fn len(&self) -> usize {
         self.0.len()
+    }
+}
+
+impl<T> Polynomial<T>
+where
+    T: Sub<T, Output = T>
+        + Mul<T, Output = T>
+        + Div<T, Output = T>
+        + Zero
+        + PartialEq
+        + Clone
+        + Copy
+{
+    fn rdiv(lhs: Self, rhs: Self) -> (Self, Self) {
+        // Get degree of each poly
+        let lhs_degree = lhs.degree();
+        let rhs_degree = rhs.degree();
+
+        // Return early if division is undoable
+        if lhs_degree < rhs_degree {
+            return (Polynomial::from([]), lhs);
+        }
+
+        // Get leading coeff
+        let lhs_lead = *lhs.coeff(lhs_degree);
+        let rhs_lead = *rhs.coeff(rhs_degree);
+
+        // Construct division poly
+        let diff = lhs_degree - rhs_degree;
+        let mut div = Polynomial(vec![T::zero(); diff + 1]);
+        *div.coeff_mut(diff) = lhs_lead / rhs_lead;
+
+        // Calculate remainder
+        let r = (lhs - div.clone() * rhs.clone()).reduce();
+
+        // Reapply division on remainder
+        let (div2, r) = Polynomial::rdiv(r, rhs);
+
+        // Return
+        return (div + div2, r);
     }
 }
 
@@ -56,8 +96,14 @@ where
             .iter()
             .enumerate()
             .rev()
-            .find_map(|(degree, coeffs)| (*coeffs == T::zero()).then(|| degree))
+            .find_map(|(degree, coeffs)| (*coeffs != T::zero()).then(|| degree))
             .unwrap_or(0)
+    }
+
+    pub fn reduce(mut self) -> Self {
+        let degree = self.degree();
+        self.0.truncate(degree + 1);
+        Self(self.0)
     }
 }
 
@@ -119,6 +165,24 @@ where
     }
 }
 
+impl<T> Sub<Self> for Polynomial<T>
+where
+    T: Sub<T, Output = T> + Copy,
+{
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self::Output {
+        let (short, mut long) = match (self.len(), rhs.len()) {
+            (a, b) if a < b => (self, rhs),
+            _ => (rhs, self),
+        };
+
+        for i in 0..short.len() {
+            long.0[i] = long.0[i] - short.0[i];
+        }
+        long
+    }
+}
+
 pub fn lagrange<T>(points: &Vec<(T, T)>) -> Polynomial<T>
 where
     T: Inv<Output = T>
@@ -169,7 +233,7 @@ fn lagrange_test() {
     let p3 = (F::from(3), F::from(1));
 
     // Generate lagrange for those 4 points
-    let poly = lagrange(vec![p0, p1, p2, p3]);
+    let poly = lagrange(&vec![p0, p1, p2, p3]);
 
     // Solve for the remaining points in GF7
     let p4x = F::from(4);
@@ -180,8 +244,33 @@ fn lagrange_test() {
     let p6 = (p6x, poly.solve(p6x));
 
     // Assert the lagrange for combinations of points are equal
-    assert_eq!(poly, lagrange(vec![p0, p3, p5, p6]));
-    assert_eq!(poly, lagrange(vec![p1, p6, p3, p2]));
-    assert_eq!(poly, lagrange(vec![p3, p2, p1, p0]));
-    assert_eq!(poly, lagrange(vec![p6, p5, p4, p3]));
+    assert_eq!(poly, lagrange(&vec![p0, p3, p5, p6]));
+    assert_eq!(poly, lagrange(&vec![p1, p6, p3, p2]));
+    assert_eq!(poly, lagrange(&vec![p3, p2, p1, p0]));
+    assert_eq!(poly, lagrange(&vec![p6, p5, p4, p3]));
+}
+
+#[test]
+fn rdiv_test() {
+    // Pick two polynomials
+    let p0 = Polynomial::from([1, -3, -10]); // x² -3x -10
+    let p1 = Polynomial::from([1, 2]); // x +2
+
+    // Perform rdiv
+    let (d, r) = Polynomial::rdiv(p0, p1.clone());
+
+    // Assert
+    assert_eq!(d, Polynomial::from([1, -5])); // x -5
+    assert_eq!(r, Polynomial::from([0])); // 0
+
+    // Pick two more polynomials
+    let p0 = Polynomial::from([2, -5, -1]); // 2x² -5x -1
+    let p1 = Polynomial::from([1, -3]); // x -3
+
+    // Perform rdiv
+    let (d, r) = Polynomial::rdiv(p0, p1.clone());
+
+    // Assert
+    assert_eq!(d, Polynomial::from([2, 1])); // 2x +1
+    assert_eq!(r, Polynomial::from([2])); // 2
 }
