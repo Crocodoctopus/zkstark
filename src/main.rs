@@ -3,10 +3,14 @@ mod merkle;
 mod polynomial;
 
 use num_traits::Pow;
+use polynomial::{lagrange, Polynomial};
 
 type F = field::Gf<3221225473>;
 
 fn main() {
+    ///////////////////
+    // Part 1
+
     // The value of x_1
     let super_secret = 3141592;
 
@@ -40,7 +44,7 @@ fn main() {
     let h: Vec<F> = (0..8192).map(|n| generator_h.pow(n)).collect();
 
     // Generate lagrange polynomial
-    let poly = polynomial::lagrange(&std::iter::zip(&g, &trace).map(|(&x, &y)| (x, y)).collect());
+    let poly = lagrange(&std::iter::zip(&g, &trace).map(|(&x, &y)| (x, y)).collect());
 
     // Check that the generated polynomial passes through each point in (G[i], trace[i]) | i < 1023
     for (x, y) in std::iter::zip(&g, &trace) {
@@ -57,4 +61,23 @@ fn main() {
     assert_eq!(eval[8189].residue(), 800520420);
     assert_eq!(eval[8190].residue(), 1199720174);
     assert_eq!(eval[8191].residue(), 1076821037);
+
+    ///////////////////
+    // Part 2
+
+    // Constraint 0:
+    // (f(x) - trace[0]) / (x - g[0])
+    let poly0 = poly.clone() - Polynomial::from([trace[0]]);
+    let poly1 = Polynomial::from([F::from(1), -g[0]]);
+    let (c0, c0r) = Polynomial::rdiv(poly0, poly1);
+
+    // Constraint 1:
+    // (f(x) - trace[1022]) / (x - g[1022])
+    let poly0 = poly.clone() - Polynomial::from([trace[1022]]);
+    let poly1 = Polynomial::from([F::from(1), -g[1022]]);
+    let (c1, c1r) = Polynomial::rdiv(poly0, poly1);
+
+    // Check that constraints have no remainders
+    assert!(c0r.degree().is_none());
+    assert!(c1r.degree().is_none());
 }

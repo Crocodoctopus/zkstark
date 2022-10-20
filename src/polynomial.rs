@@ -31,18 +31,17 @@ where
         + Zero
         + PartialEq
         + Clone
-        + Copy
-        + std::fmt::Debug,
+        + Copy,
 {
-    fn rdiv(lhs: Self, rhs: Self) -> (Self, Self) {
+    pub fn rdiv(lhs: Self, rhs: Self) -> (Self, Self) {
         // Get degree of each poly
-        let lhs_degree = lhs.degree();
-        let rhs_degree = rhs.degree();
+        let lhs_degree = lhs.degree().unwrap_or(0);
+        let rhs_degree = rhs.degree().unwrap_or(0);
 
         // Return early if division is undoable
         if lhs_degree < rhs_degree {
             //println!("([], {lhs:?})");
-            return (Polynomial::from([]), lhs);
+            return (Polynomial::from([]), lhs.reduce());
         }
 
         // Get leading coeff
@@ -93,18 +92,17 @@ impl<T> Polynomial<T>
 where
     T: Zero + PartialEq,
 {
-    pub fn degree(&self) -> usize {
+    pub fn degree(&self) -> Option<usize> {
         self.0
             .iter()
             .enumerate()
             .rev()
             .find_map(|(degree, coeffs)| (*coeffs != T::zero()).then(|| degree))
-            .unwrap_or(0)
     }
 
     pub fn reduce(mut self) -> Self {
-        let degree = self.degree();
-        self.0.truncate(degree + 1);
+        let degree = self.degree().map(|v| v + 1).unwrap_or(0);
+        self.0.truncate(degree);
         Self(self.0)
     }
 }
@@ -273,7 +271,7 @@ fn rdiv_test() {
 
     // Assert
     assert_eq!(d, Polynomial::from([1, -5])); // x -5
-    assert_eq!(r, Polynomial::from([0])); // 0
+    assert_eq!(r, Polynomial::from([])); // 0
 
     // Pick two more polynomials
     let p0 = Polynomial::from([2, -5, -1]); // 2x² -5x -1
@@ -285,7 +283,6 @@ fn rdiv_test() {
     // Assert
     assert_eq!(d, Polynomial::from([2, 1])); // 2x +1
     assert_eq!(r, Polynomial::from([2])); // 2*/
-
     // Last two
     let p0 = Polynomial::from([1, 0, 2, 0, 0, 6, -9]); // x^6 +2x^4 +6x -9
     let p1 = Polynomial::from([1, 0, 0, 3]); // x^3 +3
@@ -295,5 +292,5 @@ fn rdiv_test() {
 
     // Assert
     assert_eq!(d, Polynomial::from([1, 0, 2, -3])); // x^3 +2x -3
-    assert_eq!(r, Polynomial::from([0])); // 0
+    assert_eq!(r, Polynomial::from([])); // 0
 }

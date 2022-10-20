@@ -93,6 +93,13 @@ impl<const P: u32> std::ops::Mul for Gf<P> {
     }
 }
 
+impl<const P: u32> std::ops::Div for Gf<P> {
+    type Output = Self;
+    fn div(self, rhs: Self) -> Self {
+        Self(self.0 / rhs.0)
+    }
+}
+
 impl<const P: u32> num_traits::identities::Zero for Gf<P> {
     fn zero() -> Self {
         Self(MontgomeryInt::new(0, &P))
