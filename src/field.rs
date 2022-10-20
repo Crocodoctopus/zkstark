@@ -81,22 +81,57 @@ impl<const P: u32> Gf<P> {
 
 impl<const P: u32> std::ops::Add for Gf<P> {
     type Output = Self;
-    fn add(self, rhs: Self) -> Self {
+    fn add(self, rhs: Self) -> Self::Output {
         Self(self.0 + rhs.0)
+    }
+}
+
+impl<const P: u32> std::ops::Add for &Gf<P> {
+    type Output = Gf<P>;
+    fn add(self, rhs: Self) -> Self::Output {
+        Gf(self.0 + rhs.0)
+    }
+}
+
+impl<const P: u32> std::ops::Sub for Gf<P> {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self(self.0 - rhs.0)
+    }
+}
+
+impl<const P: u32> std::ops::Sub for &Gf<P> {
+    type Output = Gf<P>;
+    fn sub(self, rhs: Self) -> Self::Output {
+        Gf(self.0 - rhs.0)
     }
 }
 
 impl<const P: u32> std::ops::Mul for Gf<P> {
     type Output = Self;
-    fn mul(self, rhs: Self) -> Self {
+    fn mul(self, rhs: Self) -> Self::Output {
         Self(self.0 * rhs.0)
+    }
+}
+
+impl<const P: u32> std::ops::Mul for &Gf<P> {
+    type Output = Gf<P>;
+    fn mul(self, rhs: Self) -> Self::Output {
+        Gf(self.0 * rhs.0)
     }
 }
 
 impl<const P: u32> std::ops::Div for Gf<P> {
     type Output = Self;
-    fn div(self, rhs: Self) -> Self {
+    fn div(self, rhs: Self) -> Self::Output {
         Self(self.0 / rhs.0)
+    }
+}
+
+impl<const P: u32> std::ops::Div for &Gf<P> {
+    type Output = Gf<P>;
+    fn div(self, rhs: Self) -> Self::Output {
+        Gf(self.0 / rhs.0)
     }
 }
 
@@ -124,13 +159,6 @@ impl<const P: u32> std::ops::Neg for Gf<P> {
     type Output = Self;
     fn neg(self) -> Self::Output {
         Self(self.0.neg())
-    }
-}
-
-impl<const P: u32> std::ops::Sub for Gf<P> {
-    type Output = Self;
-    fn sub(self, rhs: Self) -> Self::Output {
-        Self(self.0 - rhs.0)
     }
 }
 

@@ -1,68 +1,25 @@
 use num_traits::identities::{One, Zero};
 use num_traits::{Inv, Pow};
 use std::ops::{Add, Div, Mul, MulAssign, Neg, Sub};
+use std::ops::{Index, IndexMut};
+
+fn reduce<T>(mut v: Vec<T>) -> Vec<T>
+where
+    T: Zero + PartialEq,
+{
+    let l = v
+        .iter()
+        .enumerate()
+        .rev()
+        .find_map(|(degree, coeffs)| (*coeffs != T::zero()).then(|| degree))
+        .map(|v| v + 1)
+        .unwrap_or(0);
+    v.truncate(l);
+    return v;
+}
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Polynomial<T>(Vec<T>);
-
-impl<T> Polynomial<T> {
-    pub fn map<I>(self, f: impl Fn(T) -> I) -> Polynomial<I> {
-        Polynomial(self.0.into_iter().map(|t| f(t)).collect())
-    }
-
-    pub fn coeff(&self, i: usize) -> &T {
-        &self.0[i]
-    }
-
-    pub fn coeff_mut(&mut self, i: usize) -> &mut T {
-        &mut self.0[i]
-    }
-
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-}
-
-impl<T> Polynomial<T>
-where
-    T: Sub<T, Output = T>
-        + Mul<T, Output = T>
-        + Div<T, Output = T>
-        + Zero
-        + PartialEq
-        + Clone
-        + Copy,
-{
-    pub fn rdiv(lhs: Self, rhs: Self) -> (Self, Self) {
-        // Get degree of each poly
-        let lhs_degree = lhs.degree().unwrap_or(0);
-        let rhs_degree = rhs.degree().unwrap_or(0);
-
-        // Return early if division is undoable
-        if lhs_degree < rhs_degree {
-            //println!("([], {lhs:?})");
-            return (Polynomial::from([]), lhs.reduce());
-        }
-
-        // Get leading coeff
-        let lhs_lead = *lhs.coeff(lhs_degree);
-        let rhs_lead = *rhs.coeff(rhs_degree);
-
-        // Construct division poly
-        let diff = lhs_degree - rhs_degree;
-        let mut div = Polynomial(vec![T::zero(); diff + 1]);
-        *div.coeff_mut(diff) = lhs_lead / rhs_lead;
-
-        // Calculate remainder
-        let r = (lhs - &div * &rhs).reduce();
-
-        // Reapply division on remainder
-        let (div2, r) = Polynomial::rdiv(r, rhs);
-
-        // Return
-        return (div + div2, r);
-    }
-}
+pub struct Polynomial<T>(Box<[T]>);
 
 impl<T, II> From<II> for Polynomial<T>
 where
@@ -74,6 +31,7 @@ where
     }
 }
 
+// Hmm, not sure about this one
 impl<T> Polynomial<T>
 where
     T: Add<T, Output = T> + Mul<T, Output = T> + Pow<u32, Output = T> + Copy + Zero,
@@ -88,61 +46,137 @@ where
     }
 }
 
-impl<T> Polynomial<T>
-where
-    T: Zero + PartialEq,
-{
+impl<T> Polynomial<T> {
     pub fn degree(&self) -> Option<usize> {
-        self.0
-            .iter()
-            .enumerate()
-            .rev()
-            .find_map(|(degree, coeffs)| (*coeffs != T::zero()).then(|| degree))
-    }
-
-    pub fn reduce(mut self) -> Self {
-        let degree = self.degree().map(|v| v + 1).unwrap_or(0);
-        self.0.truncate(degree);
-        Self(self.0)
+        if self.0.len() == 0 {
+            None
+        } else {
+            Some(self.0.len() - 1)
+        }
     }
 }
 
-impl<T> Mul<Self> for Polynomial<T>
+impl<T> Index<usize> for Polynomial<T> {
+    type Output = T;
+    fn index(&self, i: usize) -> &Self::Output {
+        let degree = self.degree().unwrap();
+        &self.0[degree - i]
+    }
+}
+
+impl<T> IndexMut<usize> for Polynomial<T> {
+    fn index_mut(&mut self, i: usize) -> &mut Self::Output {
+        let degree = self.degree().unwrap();
+        &mut self.0[degree - i]
+    }
+}
+
+impl<T> Add for &Polynomial<T>
 where
-    T: Mul<T, Output = T> + Add<T, Output = T> + Copy + Zero,
+    for<'a> &'a T: Add<&'a T, Output = T>,
+    T: Zero + Clone + PartialEq,
 {
-    type Output = Self;
-    fn mul(self, rhs: Self) -> Self::Output {
-        &self * &rhs
+    type Output = Polynomial<T>;
+    fn add(self, rhs: Self) -> Self::Output {
+        let degree0 = self.degree();
+        let degree1 = rhs.degree();
+
+        // If either is None, return the other
+        let (degree0, degree1) = match (degree0, degree1) {
+            (Some(d0), Some(d1)) => (d0, d1),
+            (None, None) => return Polynomial(Box::new([])),
+            (None, _) => return rhs.clone(),
+            (_, None) => return self.clone(),
+        };
+
+        // Construct poly
+        let mut poly = vec![T::zero(); usize::max(degree0, degree1) + 1];
+
+        // Perform addition
+        for (i, t) in self.0.iter().enumerate() {
+            poly[i] = &poly[i] + t;
+        }
+        for (i, t) in rhs.0.iter().enumerate() {
+            poly[i] = &poly[i] + t;
+        }
+
+        Polynomial(reduce(poly).into_boxed_slice())
     }
 }
 
-impl<T> Mul<Self> for &Polynomial<T>
+impl<T> Sub for &Polynomial<T>
 where
-    T: Mul<T, Output = T> + Add<T, Output = T> + Copy + Zero,
+    for<'a> &'a T: Add<&'a T, Output = T> + Sub<&'a T, Output = T>,
+    T: Zero + Clone + PartialEq,
+{
+    type Output = Polynomial<T>;
+    fn sub(self, rhs: Self) -> Self::Output {
+        let degree0 = self.degree();
+        let degree1 = rhs.degree();
+
+        // If either is None, return the other
+        let (degree0, degree1) = match (degree0, degree1) {
+            (Some(d0), Some(d1)) => (d0, d1),
+            (None, None) => return Polynomial(Box::new([])),
+            (None, _) => return rhs.clone(),
+            (_, None) => return self.clone(),
+        };
+
+        // Construct poly
+        let mut poly = vec![T::zero(); usize::max(degree0, degree1) + 1];
+
+        // Perform addition
+        for (i, t) in self.0.iter().enumerate() {
+            poly[i] = &poly[i] + t;
+        }
+        for (i, t) in rhs.0.iter().enumerate() {
+            poly[i] = &poly[i] - t;
+        }
+
+        Polynomial(reduce(poly).into_boxed_slice())
+    }
+}
+
+impl<T> Sub<T> for &Polynomial<T>
+where
+    T: Sub<T, Output = T> + Zero + Clone + PartialEq,
+{
+    type Output = Polynomial<T>;
+    fn sub(self, rhs: T) -> Self::Output {
+        let mut poly = self.0.to_vec();
+        poly[0] = poly[0].clone() - rhs;
+        Polynomial(reduce(poly).into_boxed_slice())
+    }
+}
+
+impl<T> Mul for &Polynomial<T>
+where
+    for<'a> &'a T: Mul<&'a T, Output = T> + Add<&'a T, Output = T>,
+    T: Zero + Clone,
 {
     type Output = Polynomial<T>;
     fn mul(self, rhs: Self) -> Self::Output {
-        let mut out = vec![T::zero(); (self.0.len() - 1) + (rhs.0.len() - 1) + 1];
+        let degree0 = self.degree();
+        let degree1 = rhs.degree();
+
+        // If either degree is None, return "None"
+        let (degree0, degree1) = match (degree0, degree1) {
+            (Some(d0), Some(d1)) => (d0, d1),
+            (_, _) => return Polynomial(Box::new([])),
+        };
+
+        // Allocate space for new poly
+        let new_degree = degree0 + degree1;
+        let mut poly = vec![T::zero(); new_degree + 1];
+
+        // Perform multiplication
         for (degree0, coeff0) in self.0.iter().enumerate() {
             for (degree1, coeff1) in rhs.0.iter().enumerate() {
-                out[degree0 + degree1] = out[degree0 + degree1] + *coeff0 * *coeff1;
+                poly[degree0 + degree1] = &poly[degree0 + degree1] + &(coeff0 * coeff1);
             }
         }
-        Polynomial(out)
-    }
-}
 
-impl<T> Mul<T> for Polynomial<T>
-where
-    T: Mul<T, Output = T> + Copy,
-{
-    type Output = Self;
-    fn mul(mut self, rhs: T) -> Self::Output {
-        for coeff in self.0.iter_mut() {
-            *coeff = *coeff * rhs;
-        }
-        self
+        Polynomial(poly.into_boxed_slice())
     }
 }
 
@@ -157,39 +191,42 @@ where
     }
 }
 
-impl<T> Add<Self> for Polynomial<T>
+impl<T> Polynomial<T>
 where
-    T: Add<T, Output = T> + Copy,
+    for<'a> &'a T: Sub<&'a T, Output = T>
+        + Mul<&'a T, Output = T>
+        + Div<&'a T, Output = T>
+        + Add<&'a T, Output = T>,
+    T: Zero + PartialEq + Clone,
 {
-    type Output = Self;
-    fn add(self, rhs: Self) -> Self::Output {
-        let (short, mut long) = match (self.len(), rhs.len()) {
-            (a, b) if a < b => (self, rhs),
-            _ => (rhs, self),
-        };
+    pub fn rdiv(lhs: Self, rhs: Self) -> (Self, Self) {
 
-        for i in 0..short.len() {
-            long.0[i] = long.0[i] + short.0[i];
+        // Get degree of each poly
+        let lhs_degree = lhs.degree().unwrap_or(0);
+        let rhs_degree = rhs.degree().unwrap_or(0);
+
+        // Return early if division is undoable
+        if lhs_degree < rhs_degree {
+            return (Polynomial::from([]), lhs);
         }
-        long
-    }
-}
 
-impl<T> Sub<Self> for Polynomial<T>
-where
-    T: Sub<T, Output = T> + Copy,
-{
-    type Output = Self;
-    fn sub(self, rhs: Self) -> Self::Output {
-        let (short, mut long) = match (self.len(), rhs.len()) {
-            (a, b) if a < b => (self, rhs),
-            _ => (rhs, self),
-        };
+        // Get leading coeff
+        let lhs_lead = &lhs[0];
+        let rhs_lead = &rhs[0];
 
-        for i in 0..short.len() {
-            long.0[i] = long.0[i] - short.0[i];
-        }
-        long
+        // Construct division poly
+        let diff = lhs_degree - rhs_degree;
+        let mut div = Polynomial::from(vec![T::zero(); diff + 1]);
+        div[0] = lhs_lead / rhs_lead;
+
+        // Calculate remainder
+        let r = &lhs - &(&div * &rhs);
+
+        // Reapply division on remainder
+        let (div2, r) = Polynomial::<T>::rdiv(r, rhs);
+
+        // Return
+        return (&div + &div2, r);
     }
 }
 
@@ -204,23 +241,24 @@ where
         + Sub<T, Output = T>
         + Pow<u32, Output = T>
         + PartialEq,
+    for<'a> &'a T: Mul<&'a T, Output = T> + Add<&'a T, Output = T>
 {
     // Generate non-normalized basis polynomials
     let mut bases: Vec<Polynomial<T>> = {
         // Generate left polynomial expansions
         let mut ll = vec![Polynomial::from([T::one()]); points.len()];
         for i in 1..points.len() {
-            ll[i] = ll[i - 1].clone() * Polynomial::from([T::one(), -points[i - 1].0]);
+            ll[i] = &ll[i - 1] * &Polynomial::from([T::one(), -points[i - 1].0]);
         }
 
         // Generate right polynomial expansions
         let mut lr = vec![Polynomial::from([T::one()]); points.len()];
         for i in (0..points.len() - 1).rev() {
-            lr[i] = lr[i + 1].clone() * Polynomial::from([T::one(), -points[i + 1].0]);
+            lr[i] = &lr[i + 1] * &Polynomial::from([T::one(), -points[i + 1].0]);
         }
 
         // Combine
-        std::iter::zip(ll, lr).map(|(l, r)| l * r).collect()
+        std::iter::zip(ll, lr).map(|(l, r)| &l * &r).collect()
     };
 
     // Normalize
@@ -229,7 +267,7 @@ where
     }
 
     // Add all bases together
-    bases.into_iter().reduce(|acc, poly| acc + poly).unwrap()
+    bases.into_iter().reduce(|acc, poly| &acc + &poly).unwrap()
 }
 
 #[test]
@@ -243,7 +281,7 @@ fn lagrange_test() {
     let p3 = (F::from(3), F::from(1));
 
     // Generate lagrange for those 4 points
-    let poly = lagrange(&vec![p0, p1, p2, p3]);
+    let poly = lagrange::<F>(&vec![p0, p1, p2, p3]);
 
     // Solve for the remaining points in GF7
     let p4x = F::from(4);
@@ -254,10 +292,10 @@ fn lagrange_test() {
     let p6 = (p6x, poly.solve(p6x));
 
     // Assert the lagrange for combinations of points are equal
-    assert_eq!(poly, lagrange(&vec![p0, p3, p5, p6]));
-    assert_eq!(poly, lagrange(&vec![p1, p6, p3, p2]));
-    assert_eq!(poly, lagrange(&vec![p3, p2, p1, p0]));
-    assert_eq!(poly, lagrange(&vec![p6, p5, p4, p3]));
+    assert_eq!(poly, lagrange::<F>(&vec![p0, p3, p5, p6]));
+    assert_eq!(poly, lagrange::<F>(&vec![p1, p6, p3, p2]));
+    assert_eq!(poly, lagrange::<F>(&vec![p3, p2, p1, p0]));
+    assert_eq!(poly, lagrange::<F>(&vec![p6, p5, p4, p3]));
 }
 
 #[test]
@@ -267,7 +305,7 @@ fn rdiv_test() {
     let p1 = Polynomial::from([1, 2]); // x +2
 
     // Perform rdiv
-    let (d, r) = Polynomial::rdiv(p0, p1);
+    let (d, r) = Polynomial::<i32>::rdiv(p0, p1);
 
     // Assert
     assert_eq!(d, Polynomial::from([1, -5])); // x -5
@@ -278,17 +316,18 @@ fn rdiv_test() {
     let p1 = Polynomial::from([1, -3]); // x -3
 
     // Perform rdiv
-    let (d, r) = Polynomial::rdiv(p0, p1);
+    let (d, r) = Polynomial::<i32>::rdiv(p0, p1);
 
     // Assert
     assert_eq!(d, Polynomial::from([2, 1])); // 2x +1
-    assert_eq!(r, Polynomial::from([2])); // 2*/
+    assert_eq!(r, Polynomial::from([2])); // 2
+
     // Last two
     let p0 = Polynomial::from([1, 0, 2, 0, 0, 6, -9]); // x^6 +2x^4 +6x -9
     let p1 = Polynomial::from([1, 0, 0, 3]); // x^3 +3
 
     // Perform rdiv
-    let (d, r) = Polynomial::rdiv(p0, p1);
+    let (d, r) = Polynomial::<i32>::rdiv(p0, p1);
 
     // Assert
     assert_eq!(d, Polynomial::from([1, 0, 2, -3])); // x^3 +2x -3

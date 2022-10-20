@@ -44,7 +44,7 @@ fn main() {
     let h: Vec<F> = (0..8192).map(|n| generator_h.pow(n)).collect();
 
     // Generate lagrange polynomial
-    let poly = lagrange(&std::iter::zip(&g, &trace).map(|(&x, &y)| (x, y)).collect());
+    let poly = lagrange::<F>(&std::iter::zip(&g, &trace).map(|(&x, &y)| (x, y)).collect());
 
     // Check that the generated polynomial passes through each point in (G[i], trace[i]) | i < 1023
     for (x, y) in std::iter::zip(&g, &trace) {
@@ -67,17 +67,21 @@ fn main() {
 
     // Constraint 0:
     // (f(x) - trace[0]) / (x - g[0])
-    let poly0 = poly.clone() - Polynomial::from([trace[0]]);
-    let poly1 = Polynomial::from([F::from(1), -g[0]]);
-    let (c0, c0r) = Polynomial::rdiv(poly0, poly1);
+    let poly0 = &poly - trace[0];
+    let poly1 = [F::from(1), -g[0]].into();
+    let (c0, c0r) = Polynomial::<F>::rdiv(poly0, poly1);
 
     // Constraint 1:
     // (f(x) - trace[1022]) / (x - g[1022])
-    let poly0 = poly.clone() - Polynomial::from([trace[1022]]);
-    let poly1 = Polynomial::from([F::from(1), -g[1022]]);
-    let (c1, c1r) = Polynomial::rdiv(poly0, poly1);
+    let poly0 = &poly - trace[1022];
+    let poly1 = [F::from(1), -g[1022]].into();
+    let (c1, c1r) = Polynomial::<F>::rdiv(poly0, poly1);
 
     // Check that constraints have no remainders
     assert!(c0r.degree().is_none());
     assert!(c1r.degree().is_none());
+
+    // Another check
+    assert_eq!(c0.solve(F::from(2718)).residue(), 2509888982);
+    assert_eq!(c1.solve(F::from(5772)).residue(), 232961446);
 }
