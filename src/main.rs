@@ -60,12 +60,13 @@ fn main() {
 
     ///////////////////
     // Part 2
+    use polynomial::x;
 
     // Constraint 0:
     // f(x) - a[0]
     // -----------
     //  x - g[0]
-    let numerator = &poly - a[0];
+    let numerator = &poly - &x(a[0], 0);
     let denominator = [F::from(1), -g[0]].into();
     let (c0, c0r) = Polynomial::<F>::rdiv(numerator, denominator);
 
@@ -73,7 +74,7 @@ fn main() {
     // f(x) - a[1022]
     // --------------
     //  x - g[1022]
-    let numerator = &poly - a[1022];
+    let numerator = &poly - &x(a[1022], 0);
     let denominator = [F::from(1), -g[1022]].into();
     let (c1, c1r) = Polynomial::<F>::rdiv(numerator, denominator);
 
@@ -87,10 +88,7 @@ fn main() {
     let t2 = &poly * &poly;
     let numerator = t0 - t1 - t2;
 
-    let mut t = vec![F::from(0); 1024 + 1];
-    t[1024] = F::from(-1);
-    t[0] = F::from(1);
-    let denominator = Polynomial::from(t);
+    let denominator = x(F::from(1), 1024) - x(F::from(1), 0);
     let (denominator, r0) = Polynomial::<F>::rdiv(denominator, [F::from(1), -g[1021]].into());
     let (denominator, r1) = Polynomial::<F>::rdiv(denominator, [F::from(1), -g[1022]].into());
     let (denominator, r2) = Polynomial::<F>::rdiv(denominator, [F::from(1), -g[1023]].into());
@@ -114,7 +112,7 @@ fn main() {
     let a0 = F::from(0);
     let a1 = F::from(787618507);
     let a2 = F::from(-1067186547);
-    let cp = c0 * a0 + c1 * a1 + c2 * a2;
+    let cp = c0 * x(a0, 0) + c1 * x(a1, 0) + c2 * x(a2, 0);
 
     // Assert composition polynomial resolves correctly
     assert_eq!(cp.degree(), Some(1023));
