@@ -379,27 +379,16 @@ where
     for<'a> &'a T: Mul<Output = T> + Add<Output = T>,
     T: Zero + Clone + PartialEq,
 {
-    // Generate h polynomial (multiplying in b)
-    let h: Polynomial<T> = Polynomial(
-        poly.0
-            .iter()
-            .enumerate()
-            .filter_map(|(i, c)| (i % 2 == 1).then(|| &b * c))
-            .collect(),
-    );
+    // Fri poly is half the size of input
+    let mut out = vec![T::zero(); poly.0.len() / 2].into_boxed_slice();
 
-    // Generate g polynomial
-    let g: Polynomial<T> = Polynomial(
-        poly.0
-            .iter()
-            .cloned()
-            .enumerate()
-            .filter_map(|(i, c)| (i % 2 == 0).then(|| c))
-            .collect(),
-    );
+    // Perform calculation
+    for i in 0..out.len() {
+        out[i] = &poly.0[2 * i] + &(&b * &poly.0[2 * i + 1]);
+    }
 
     // Sum and return
-    &g + &h
+    Polynomial(out)
 }
 
 #[test]

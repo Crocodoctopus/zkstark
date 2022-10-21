@@ -48,7 +48,8 @@ fn main() {
     }
 
     // Solve polynomial over h, shifted by the primitive root
-    let eval: Vec<F> = h.iter().map(|n| poly.solve(primitive_root * *n)).collect();
+    let eval_domain: Vec<F> = h.iter().map(|n| primitive_root * *n).collect();
+    let eval: Vec<F> = eval_domain.iter().map(|&n| poly.solve(n)).collect();
 
     // Assert a few elements of eval are correct
     assert_eq!(eval[0].residue(), 576067152);
@@ -117,6 +118,17 @@ fn main() {
     // Assert composition polynomial resolves correctly
     assert_eq!(cp.degree(), Some(1023));
     assert_eq!(cp.solve(F::from(2439804)).residue(), 838767343);
+
+    // Evaluate cp over eval_domain
+    let cp_eval: Vec<F> = eval_domain.iter().map(|&n| cp.solve(n)).collect();
+
+    // Assert a few elements of cp_eval are correct
+    assert_eq!(cp_eval[0].residue(), 551740506);
+    assert_eq!(cp_eval[1].residue(), 716458408);
+    assert_eq!(cp_eval[2].residue(), 2091260387);
+    assert_eq!(cp_eval[8189].residue(), 412406999);
+    assert_eq!(cp_eval[8190].residue(), 782538909);
+    assert_eq!(cp_eval[8191].residue(), 811632985);
 
     ///////////////////
     // Part 3
