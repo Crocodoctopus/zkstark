@@ -56,6 +56,19 @@ impl<T> Polynomial<T> {
     }
 }
 
+impl<T> Polynomial<T>
+where
+    for<'a> &'a T: Pow<u32, Output = T>,
+    T: MulAssign<T>,
+{
+    pub fn apply_const(mut self, t: T) -> Self {
+        for (degree, coeff) in self.0.iter_mut().enumerate() {
+            *coeff *= (&t).pow(degree as u32)
+        }
+        self
+    }
+}
+
 impl<T> Index<usize> for Polynomial<T> {
     type Output = T;
     fn index(&self, i: usize) -> &Self::Output {
@@ -104,6 +117,17 @@ where
     }
 }
 
+impl<T> Add for Polynomial<T>
+where
+    for<'a> &'a T: Add<&'a T, Output = T> + Sub<&'a T, Output = T>,
+    T: Zero + Clone + PartialEq,
+{
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self::Output {
+        &self + &rhs
+    }
+}
+
 impl<T> Sub for &Polynomial<T>
 where
     for<'a> &'a T: Add<&'a T, Output = T> + Sub<&'a T, Output = T>,
@@ -134,6 +158,17 @@ where
         }
 
         Polynomial(reduce(poly).into_boxed_slice())
+    }
+}
+
+impl<T> Sub for Polynomial<T>
+where
+    for<'a> &'a T: Add<&'a T, Output = T> + Sub<&'a T, Output = T>,
+    T: Zero + Clone + PartialEq,
+{
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self::Output {
+        &self - &rhs
     }
 }
 
@@ -180,6 +215,17 @@ where
     }
 }
 
+impl<T> Mul for Polynomial<T>
+where
+    for<'a> &'a T: Mul<&'a T, Output = T> + Add<&'a T, Output = T>,
+    T: Zero + Clone,
+{
+    type Output = Self;
+    fn mul(self, rhs: Self) -> Self::Output {
+        &self * &rhs
+    }
+}
+
 impl<T> MulAssign<T> for Polynomial<T>
 where
     T: Mul<T, Output = T> + Copy,
@@ -200,7 +246,6 @@ where
     T: Zero + PartialEq + Clone,
 {
     pub fn rdiv(lhs: Self, rhs: Self) -> (Self, Self) {
-
         // Get degree of each poly
         let lhs_degree = lhs.degree().unwrap_or(0);
         let rhs_degree = rhs.degree().unwrap_or(0);
@@ -220,13 +265,13 @@ where
         div[0] = lhs_lead / rhs_lead;
 
         // Calculate remainder
-        let r = &lhs - &(&div * &rhs);
+        let r = lhs - &div * &rhs;
 
         // Reapply division on remainder
         let (div2, r) = Polynomial::<T>::rdiv(r, rhs);
 
         // Return
-        return (&div + &div2, r);
+        return (div + div2, r);
     }
 }
 
@@ -241,7 +286,7 @@ where
         + Sub<T, Output = T>
         + Pow<u32, Output = T>
         + PartialEq,
-    for<'a> &'a T: Mul<&'a T, Output = T> + Add<&'a T, Output = T>
+    for<'a> &'a T: Mul<&'a T, Output = T> + Add<&'a T, Output = T>,
 {
     // Generate non-normalized basis polynomials
     let mut bases: Vec<Polynomial<T>> = {

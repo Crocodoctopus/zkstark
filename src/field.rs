@@ -30,6 +30,13 @@ impl<const P: u32> Pow<u32> for Gf<P> {
     }
 }
 
+impl<const P: u32> Pow<u32> for &Gf<P> {
+    type Output = Gf<P>;
+    fn pow(self, rhs: u32) -> Self::Output {
+        Gf(self.0.pow(rhs))
+    }
+}
+
 impl<const P: u32> Gf<P> {
     pub fn residue(self) -> u32 {
         self.0.residue()
@@ -118,6 +125,12 @@ impl<const P: u32> std::ops::Mul for &Gf<P> {
     type Output = Gf<P>;
     fn mul(self, rhs: Self) -> Self::Output {
         Gf(self.0 * rhs.0)
+    }
+}
+
+impl<const P: u32> std::ops::MulAssign for Gf<P> {
+    fn mul_assign(&mut self, rhs: Self) {
+        self.0 = self.0 * rhs.0;
     }
 }
 
