@@ -117,4 +117,28 @@ fn main() {
     // Assert composition polynomial resolves correctly
     assert_eq!(cp.degree(), Some(1023));
     assert_eq!(cp.solve(F::from(2439804)).residue(), 838767343);
+
+    // Calculate FRI polynomials in sequence until we reach a poly with a degree of 0
+    let cp1 = polynomial::fri::<F>(&cp, F::from(3));
+    let cp2 = polynomial::fri::<F>(&cp1, F::from(3));
+    let cp3 = polynomial::fri::<F>(&cp2, F::from(3));
+    let cp4 = polynomial::fri::<F>(&cp3, F::from(3));
+    let cp5 = polynomial::fri::<F>(&cp4, F::from(3));
+    let cp6 = polynomial::fri::<F>(&cp5, F::from(3));
+    let cp7 = polynomial::fri::<F>(&cp6, F::from(3));
+    let cp8 = polynomial::fri::<F>(&cp7, F::from(3));
+    let cp9 = polynomial::fri::<F>(&cp8, F::from(3));
+    let cp10 = polynomial::fri::<F>(&cp9, F::from(3));
+
+    // Assert their degree
+    assert_eq!(cp1.degree(), Some(511));
+    assert_eq!(cp2.degree(), Some(255));
+    assert_eq!(cp3.degree(), Some(127));
+    assert_eq!(cp4.degree(), Some(63));
+    assert_eq!(cp5.degree(), Some(31));
+    assert_eq!(cp6.degree(), Some(15));
+    assert_eq!(cp7.degree(), Some(7));
+    assert_eq!(cp8.degree(), Some(3));
+    assert_eq!(cp9.degree(), Some(1));
+    assert_eq!(cp10.degree(), Some(0));
 }

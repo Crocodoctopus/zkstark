@@ -374,7 +374,7 @@ where
     bases.into_iter().reduce(|acc, poly| &acc + &poly).unwrap()
 }
 
-pub fn fri<T>(poly: Polynomial<T>, b: T) -> Polynomial<T>
+pub fn fri<T>(poly: &Polynomial<T>, b: T) -> Polynomial<T>
 where
     for<'a> &'a T: Mul<Output = T> + Add<Output = T>,
     T: Zero + Clone + PartialEq,
@@ -391,8 +391,8 @@ where
     // Generate g polynomial
     let g: Polynomial<T> = Polynomial(
         poly.0
-            .into_vec()
-            .into_iter()
+            .iter()
+            .cloned()
             .enumerate()
             .filter_map(|(i, c)| (i % 2 == 0).then(|| c))
             .collect(),
@@ -406,7 +406,7 @@ where
 fn fri_test() {
     // Small FRI test
     let poly = Polynomial::from([5, 3, 7, 2, 1, 3]);
-    assert_eq!(fri::<u32>(poly, 3), Polynomial::from([18, 23, 6]));
+    assert_eq!(fri::<u32>(&poly, 3), Polynomial::from([18, 23, 6]));
 }
 
 #[test]
