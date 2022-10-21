@@ -3,6 +3,15 @@ use num_traits::{Inv, Pow};
 use std::ops::{Add, Div, Mul, MulAssign, Neg, Sub};
 use std::ops::{Index, IndexMut};
 
+pub fn x<T>(t: T, e: usize) -> Polynomial<T>
+where
+    T: Zero + One + Clone,
+{
+    let mut temp = vec![T::zero(); e + 1];
+    temp[0] = t;
+    Polynomial::from(temp)
+}
+
 fn reduce<T>(mut v: Vec<T>) -> Vec<T>
 where
     T: Zero + PartialEq,
@@ -86,7 +95,7 @@ impl<T> IndexMut<usize> for Polynomial<T> {
 
 impl<T> Add for &Polynomial<T>
 where
-    for<'a> &'a T: Add<&'a T, Output = T>,
+    for<'a> &'a T: Add<Output = T>,
     T: Zero + Clone + PartialEq,
 {
     type Output = Polynomial<T>;
@@ -119,7 +128,7 @@ where
 
 impl<T> Add for Polynomial<T>
 where
-    for<'a> &'a T: Add<&'a T, Output = T> + Sub<&'a T, Output = T>,
+    for<'a> &'a T: Add<Output = T> + Sub<Output = T>,
     T: Zero + Clone + PartialEq,
 {
     type Output = Self;
@@ -130,7 +139,7 @@ where
 
 impl<T> Sub for &Polynomial<T>
 where
-    for<'a> &'a T: Add<&'a T, Output = T> + Sub<&'a T, Output = T>,
+    for<'a> &'a T: Add<Output = T> + Sub<Output = T>,
     T: Zero + Clone + PartialEq,
 {
     type Output = Polynomial<T>;
@@ -163,30 +172,18 @@ where
 
 impl<T> Sub for Polynomial<T>
 where
-    for<'a> &'a T: Add<&'a T, Output = T> + Sub<&'a T, Output = T>,
+    for<'a> &'a T: Add<Output = T> + Sub<Output = T>,
     T: Zero + Clone + PartialEq,
 {
     type Output = Self;
     fn sub(self, rhs: Self) -> Self::Output {
-        &self - &rhs
-    }
-}
-
-impl<T> Sub<T> for &Polynomial<T>
-where
-    T: Sub<T, Output = T> + Zero + Clone + PartialEq,
-{
-    type Output = Polynomial<T>;
-    fn sub(self, rhs: T) -> Self::Output {
-        let mut poly = self.0.to_vec();
-        poly[0] = poly[0].clone() - rhs;
-        Polynomial(reduce(poly).into_boxed_slice())
+        <&Self as Sub<&Self>>::sub(&self, &rhs)
     }
 }
 
 impl<T> Mul for &Polynomial<T>
 where
-    for<'a> &'a T: Mul<&'a T, Output = T> + Add<&'a T, Output = T>,
+    for<'a> &'a T: Mul<Output = T> + Add<Output = T>,
     T: Zero + Clone,
 {
     type Output = Polynomial<T>;
@@ -215,23 +212,9 @@ where
     }
 }
 
-impl<T> Mul<T> for Polynomial<T>
-where
-    for<'a> &'a T: Mul<&'a T, Output = T> + Add<&'a T, Output = T>,
-    T: Zero + Clone,
-{
-    type Output = Self;
-    fn mul(mut self, rhs: T) -> Self::Output {
-        for coeff in self.0.iter_mut() {
-            *coeff = &*coeff * &rhs;
-        }
-        self
-    }
-}
-
 impl<T> Mul for Polynomial<T>
 where
-    for<'a> &'a T: Mul<&'a T, Output = T> + Add<&'a T, Output = T>,
+    for<'a> &'a T: Mul<Output = T> + Add<Output = T>,
     T: Zero + Clone,
 {
     type Output = Self;
@@ -253,10 +236,10 @@ where
 
 impl<T> Polynomial<T>
 where
-    for<'a> &'a T: Sub<&'a T, Output = T>
-        + Mul<&'a T, Output = T>
-        + Div<&'a T, Output = T>
-        + Add<&'a T, Output = T>,
+    for<'a> &'a T: Sub<Output = T>
+        + Mul<Output = T>
+        + Div<Output = T>
+        + Add<Output = T>,
     T: Zero + PartialEq + Clone,
 {
     pub fn rdiv(lhs: Self, rhs: Self) -> (Self, Self) {
@@ -300,7 +283,7 @@ where
         + Sub<T, Output = T>
         + Pow<u32, Output = T>
         + PartialEq,
-    for<'a> &'a T: Mul<&'a T, Output = T> + Add<&'a T, Output = T>,
+    for<'a> &'a T: Mul<Output = T> + Add<Output = T>,
 {
     // Generate non-normalized basis polynomials
     let mut bases: Vec<Polynomial<T>> = {
