@@ -133,27 +133,37 @@ fn main() {
     ///////////////////
     // Part 3
 
-    // Calculate FRI polynomials in sequence until we reach a poly with a degree of 0
-    let cp1 = polynomial::fri::<F>(&cp, F::from(3));
-    let cp2 = polynomial::fri::<F>(&cp1, F::from(3));
-    let cp3 = polynomial::fri::<F>(&cp2, F::from(3));
-    let cp4 = polynomial::fri::<F>(&cp3, F::from(3));
-    let cp5 = polynomial::fri::<F>(&cp4, F::from(3));
-    let cp6 = polynomial::fri::<F>(&cp5, F::from(3));
-    let cp7 = polynomial::fri::<F>(&cp6, F::from(3));
-    let cp8 = polynomial::fri::<F>(&cp7, F::from(3));
-    let cp9 = polynomial::fri::<F>(&cp8, F::from(3));
-    let cp10 = polynomial::fri::<F>(&cp9, F::from(3));
+    let mut fri_evals: Vec<Vec<F>> = vec![cp_eval];
+    let mut fri_domain = eval_domain;
+    let mut fri_poly = cp;
+    while fri_poly.degree().unwrap() > 0 {
+        // Get new fri domain
+        fri_domain.truncate(fri_domain.len() / 2);
+        for e in &mut fri_domain {
+            *e = e.pow(2);
+        }
 
-    // Assert their degree
-    assert_eq!(cp1.degree(), Some(511));
-    assert_eq!(cp2.degree(), Some(255));
-    assert_eq!(cp3.degree(), Some(127));
-    assert_eq!(cp4.degree(), Some(63));
-    assert_eq!(cp5.degree(), Some(31));
-    assert_eq!(cp6.degree(), Some(15));
-    assert_eq!(cp7.degree(), Some(7));
-    assert_eq!(cp8.degree(), Some(3));
-    assert_eq!(cp9.degree(), Some(1));
-    assert_eq!(cp10.degree(), Some(0));
+        // Get new fri poly
+        fri_poly = polynomial::fri::<F>(&fri_poly, F::from(3));
+
+        // Solve over new domain
+        let fri_eval = fri_domain.iter().map(|&n| fri_poly.solve(n)).collect();
+        fri_evals.push(fri_eval);
+    }
+
+    // Assert that it took 10 (plus) iterations to reach degree 0
+    assert_eq!(fri_evals.len(), 11);
+
+    // Assert fri_eval sizes
+    assert_eq!(fri_evals.get(0).map(|v| v.len()), Some(8192));
+    assert_eq!(fri_evals.get(1).map(|v| v.len()), Some(4096));
+    assert_eq!(fri_evals.get(2).map(|v| v.len()), Some(2048));
+    assert_eq!(fri_evals.get(3).map(|v| v.len()), Some(1024));
+    assert_eq!(fri_evals.get(4).map(|v| v.len()), Some(512));
+    assert_eq!(fri_evals.get(5).map(|v| v.len()), Some(256));
+    assert_eq!(fri_evals.get(6).map(|v| v.len()), Some(128));
+    assert_eq!(fri_evals.get(7).map(|v| v.len()), Some(64));
+    assert_eq!(fri_evals.get(8).map(|v| v.len()), Some(32));
+    assert_eq!(fri_evals.get(9).map(|v| v.len()), Some(16));
+    assert_eq!(fri_evals.get(10).map(|v| v.len()), Some(8));
 }
