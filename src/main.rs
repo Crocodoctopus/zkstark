@@ -21,7 +21,7 @@ fn main() {
     }
 
     // Assert the trace is correct
-    assert!(a[1022].residue() == 2338775057);
+    assert_eq!(a[1022].residue(), 2338775057);
 
     // Generate a primitive root of F_3221225473
     let primitive_root = F::generator();

@@ -43,14 +43,15 @@ where
 // Hmm, not sure about this one
 impl<T> Polynomial<T>
 where
-    T: Add<T, Output = T> + Mul<T, Output = T> + Pow<u32, Output = T> + Copy + Zero,
+    for<'a> &'a T: Add<Output = T> + Mul<Output = T> + Pow<u32, Output = T>,
+    T: Clone + Zero,
 {
     pub fn solve(&self, t: T) -> T {
         self.0
             .iter()
             .enumerate()
             .fold(T::zero(), |acc, (degree, coeff)| {
-                acc + *coeff * t.pow(degree as u32)
+                acc + coeff * &(&t).pow(degree as u32)
             })
     }
 }
@@ -133,7 +134,29 @@ where
 {
     type Output = Self;
     fn add(self, rhs: Self) -> Self::Output {
-        &self + &rhs
+        let degree0 = self.degree();
+        let degree1 = rhs.degree();
+
+        // If either is None, return the other
+        let (degree0, degree1) = match (degree0, degree1) {
+            (Some(d0), Some(d1)) => (d0, d1),
+            (None, None) => return Polynomial(Box::new([])),
+            (None, _) => return rhs.clone(),
+            (_, None) => return self.clone(),
+        };
+
+        // Construct poly
+        let mut poly = vec![T::zero(); usize::max(degree0, degree1) + 1];
+
+        // Perform addition
+        for (i, t) in self.0.iter().enumerate() {
+            poly[i] = &poly[i] + t;
+        }
+        for (i, t) in rhs.0.iter().enumerate() {
+            poly[i] = &poly[i] + t;
+        }
+
+        Polynomial(reduce(poly).into_boxed_slice())
     }
 }
 
@@ -177,7 +200,29 @@ where
 {
     type Output = Self;
     fn sub(self, rhs: Self) -> Self::Output {
-        <&Self as Sub<&Self>>::sub(&self, &rhs)
+        let degree0 = self.degree();
+        let degree1 = rhs.degree();
+
+        // If either is None, return the other
+        let (degree0, degree1) = match (degree0, degree1) {
+            (Some(d0), Some(d1)) => (d0, d1),
+            (None, None) => return Polynomial(Box::new([])),
+            (None, _) => return rhs.clone(),
+            (_, None) => return self.clone(),
+        };
+
+        // Construct poly
+        let mut poly = vec![T::zero(); usize::max(degree0, degree1) + 1];
+
+        // Perform addition
+        for (i, t) in self.0.iter().enumerate() {
+            poly[i] = &poly[i] + t;
+        }
+        for (i, t) in rhs.0.iter().enumerate() {
+            poly[i] = &poly[i] - t;
+        }
+
+        Polynomial(reduce(poly).into_boxed_slice())
     }
 }
 
@@ -219,7 +264,27 @@ where
 {
     type Output = Self;
     fn mul(self, rhs: Self) -> Self::Output {
-        &self * &rhs
+        let degree0 = self.degree();
+        let degree1 = rhs.degree();
+
+        // If either degree is None, return "None"
+        let (degree0, degree1) = match (degree0, degree1) {
+            (Some(d0), Some(d1)) => (d0, d1),
+            (_, _) => return Polynomial(Box::new([])),
+        };
+
+        // Allocate space for new poly
+        let new_degree = degree0 + degree1;
+        let mut poly = vec![T::zero(); new_degree + 1];
+
+        // Perform multiplication
+        for (degree0, coeff0) in self.0.iter().enumerate() {
+            for (degree1, coeff1) in rhs.0.iter().enumerate() {
+                poly[degree0 + degree1] = &poly[degree0 + degree1] + &(coeff0 * coeff1);
+            }
+        }
+
+        Polynomial(poly.into_boxed_slice())
     }
 }
 
@@ -236,10 +301,7 @@ where
 
 impl<T> Polynomial<T>
 where
-    for<'a> &'a T: Sub<Output = T>
-        + Mul<Output = T>
-        + Div<Output = T>
-        + Add<Output = T>,
+    for<'a> &'a T: Sub<Output = T> + Mul<Output = T> + Div<Output = T> + Add<Output = T>,
     T: Zero + PartialEq + Clone,
 {
     pub fn rdiv(lhs: Self, rhs: Self) -> (Self, Self) {
@@ -283,7 +345,7 @@ where
         + Sub<T, Output = T>
         + Pow<u32, Output = T>
         + PartialEq,
-    for<'a> &'a T: Mul<Output = T> + Add<Output = T>,
+    for<'a> &'a T: Mul<Output = T> + Add<Output = T> + Pow<u32, Output = T>,
 {
     // Generate non-normalized basis polynomials
     let mut bases: Vec<Polynomial<T>> = {
@@ -310,6 +372,41 @@ where
 
     // Add all bases together
     bases.into_iter().reduce(|acc, poly| &acc + &poly).unwrap()
+}
+
+pub fn fri<T>(poly: Polynomial<T>, b: T) -> Polynomial<T>
+where
+    for<'a> &'a T: Mul<Output = T> + Add<Output = T>,
+    T: Zero + Clone + PartialEq,
+{
+    // Generate h polynomial (multiplying in b)
+    let h: Polynomial<T> = Polynomial(
+        poly.0
+            .iter()
+            .enumerate()
+            .filter_map(|(i, c)| (i % 2 == 1).then(|| &b * c))
+            .collect(),
+    );
+
+    // Generate g polynomial
+    let g: Polynomial<T> = Polynomial(
+        poly.0
+            .into_vec()
+            .into_iter()
+            .enumerate()
+            .filter_map(|(i, c)| (i % 2 == 0).then(|| c))
+            .collect(),
+    );
+
+    // Sum and return
+    &g + &h
+}
+
+#[test]
+fn fri_test() {
+    // Small FRI test
+    let poly = Polynomial::from([5, 3, 7, 2, 1, 3]);
+    assert_eq!(fri::<u32>(poly, 3), Polynomial::from([18, 23, 6]));
 }
 
 #[test]
