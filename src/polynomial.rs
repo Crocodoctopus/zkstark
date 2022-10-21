@@ -304,7 +304,7 @@ where
     for<'a> &'a T: Sub<Output = T> + Mul<Output = T> + Div<Output = T> + Add<Output = T>,
     T: Zero + PartialEq + Clone,
 {
-    pub fn rdiv(lhs: Self, rhs: Self) -> (Self, Self) {
+    pub fn div(lhs: Self, rhs: Self) -> (Self, Self) {
         // Get degree of each poly
         let lhs_degree = lhs.degree().unwrap_or(0);
         let rhs_degree = rhs.degree().unwrap_or(0);
@@ -327,10 +327,10 @@ where
         let r = lhs - &div * &rhs;
 
         // Reapply division on remainder
-        let (div2, r) = Polynomial::<T>::rdiv(r, rhs);
+        let (q, r) = Polynomial::<T>::div(r, rhs);
 
         // Return
-        return (div + div2, r);
+        return (div + q, r);
     }
 }
 
@@ -438,13 +438,13 @@ fn lagrange_test() {
 }
 
 #[test]
-fn rdiv_test() {
+fn div_test() {
     // Pick two polynomials
     let p0 = Polynomial::from([1, -3, -10]); // x² -3x -10
     let p1 = Polynomial::from([1, 2]); // x +2
 
-    // Perform rdiv
-    let (d, r) = Polynomial::<i32>::rdiv(p0, p1);
+    // Perform div
+    let (d, r) = Polynomial::<i32>::div(p0, p1);
 
     // Assert
     assert_eq!(d, Polynomial::from([1, -5])); // x -5
@@ -454,8 +454,8 @@ fn rdiv_test() {
     let p0 = Polynomial::from([2, -5, -1]); // 2x² -5x -1
     let p1 = Polynomial::from([1, -3]); // x -3
 
-    // Perform rdiv
-    let (d, r) = Polynomial::<i32>::rdiv(p0, p1);
+    // Perform div
+    let (d, r) = Polynomial::<i32>::div(p0, p1);
 
     // Assert
     assert_eq!(d, Polynomial::from([2, 1])); // 2x +1
@@ -465,8 +465,8 @@ fn rdiv_test() {
     let p0 = Polynomial::from([1, 0, 2, 0, 0, 6, -9]); // x^6 +2x^4 +6x -9
     let p1 = Polynomial::from([1, 0, 0, 3]); // x^3 +3
 
-    // Perform rdiv
-    let (d, r) = Polynomial::<i32>::rdiv(p0, p1);
+    // Perform div
+    let (d, r) = Polynomial::<i32>::div(p0, p1);
 
     // Assert
     assert_eq!(d, Polynomial::from([1, 0, 2, -3])); // x^3 +2x -3

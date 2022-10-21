@@ -68,7 +68,7 @@ fn main() {
     //  x - g[0]
     let numerator = &poly - &x(a[0], 0);
     let denominator = [F::from(1), -g[0]].into();
-    let (c0, c0r) = Polynomial::<F>::rdiv(numerator, denominator);
+    let (c0, c0r) = Polynomial::<F>::div(numerator, denominator);
 
     // Constraint 1:
     // f(x) - a[1022]
@@ -76,7 +76,7 @@ fn main() {
     //  x - g[1022]
     let numerator = &poly - &x(a[1022], 0);
     let denominator = [F::from(1), -g[1022]].into();
-    let (c1, c1r) = Polynomial::<F>::rdiv(numerator, denominator);
+    let (c1, c1r) = Polynomial::<F>::div(numerator, denominator);
 
     // Constraint 2:
     //              f(g^2 x) - f(g x)^2 - f(x)^2
@@ -89,10 +89,10 @@ fn main() {
     let numerator = t0 - t1 - t2;
 
     let denominator = x(F::from(1), 1024) - x(F::from(1), 0);
-    let (denominator, r0) = Polynomial::<F>::rdiv(denominator, [F::from(1), -g[1021]].into());
-    let (denominator, r1) = Polynomial::<F>::rdiv(denominator, [F::from(1), -g[1022]].into());
-    let (denominator, r2) = Polynomial::<F>::rdiv(denominator, [F::from(1), -g[1023]].into());
-    let (c2, c2r) = Polynomial::<F>::rdiv(numerator, denominator);
+    let (denominator, r0) = Polynomial::<F>::div(denominator, [F::from(1), -g[1021]].into());
+    let (denominator, r1) = Polynomial::<F>::div(denominator, [F::from(1), -g[1022]].into());
+    let (denominator, r2) = Polynomial::<F>::div(denominator, [F::from(1), -g[1023]].into());
+    let (c2, c2r) = Polynomial::<F>::div(numerator, denominator);
 
     // Assert constraints have no remainders
     assert!(c0r.degree().is_none());
