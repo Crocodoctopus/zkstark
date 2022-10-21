@@ -215,6 +215,21 @@ where
     }
 }
 
+impl<T> Mul<T> for Polynomial<T>
+where
+    for<'a> &'a T: Mul<&'a T, Output = T> + Add<&'a T, Output = T>,
+    T: Zero + Clone,
+{
+    type Output = Self;
+    fn mul(mut self, rhs: T) -> Self::Output {
+        for coeff in self.0.iter_mut() {
+            *coeff = &*coeff * &rhs;
+        }
+        self
+    }
+}
+
+
 impl<T> Mul for Polynomial<T>
 where
     for<'a> &'a T: Mul<&'a T, Output = T> + Add<&'a T, Output = T>,

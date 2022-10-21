@@ -108,8 +108,18 @@ fn main() {
     assert!(c2r.degree().is_none());
 
     // Another check
-    assert_eq!(c2.degree().unwrap(), 1023);
+    assert_eq!(c2.degree(), Some(1023));
     assert_eq!(c0.solve(F::from(2718)).residue(), 2509888982);
     assert_eq!(c1.solve(F::from(5772)).residue(), 232961446);
     assert_eq!(c2.solve(F::from(31415)).residue(), 2090051528);
+
+    // Composition polynomial (normally, these would be random)
+    let a0 = F::from(0);
+    let a1 = F::from(787618507);
+    let a2 = F::from(-1067186547);
+    let cp = c0 * a0 + c1 * a1 + c2 * a2;
+
+    // Assert composition polynomial
+    assert_eq!(cp.degree(), Some(1023));
+    assert_eq!(cp.solve(F::from(2439804)).residue(), 838767343);
 }
