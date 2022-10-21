@@ -229,7 +229,6 @@ where
     }
 }
 
-
 impl<T> Mul for Polynomial<T>
 where
     for<'a> &'a T: Mul<&'a T, Output = T> + Add<&'a T, Output = T>,
