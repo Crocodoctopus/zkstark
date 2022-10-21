@@ -118,6 +118,9 @@ fn main() {
     assert_eq!(cp.degree(), Some(1023));
     assert_eq!(cp.solve(F::from(2439804)).residue(), 838767343);
 
+    ///////////////////
+    // Part 3
+
     // Calculate FRI polynomials in sequence until we reach a poly with a degree of 0
     let cp1 = polynomial::fri::<F>(&cp, F::from(3));
     let cp2 = polynomial::fri::<F>(&cp1, F::from(3));
