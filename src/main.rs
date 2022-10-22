@@ -6,6 +6,7 @@ use num_traits::Pow;
 use polynomial::{lagrange, Polynomial};
 
 type F = field::Gf<3221225473>;
+use num_traits::{Zero, One};
 
 fn main() {
     let mut channel = channel::Channel::new();
@@ -14,8 +15,8 @@ fn main() {
     // Part 1:
 
     // The trace sequence
-    let mut a = [F::from(0); 1023];
-    a[0] = F::from(1);
+    let mut a = [F::zero(); 1023];
+    a[0] = F::one();
     a[1] = F::from(3141592); // The secret
     for i in 2..1023 {
         let t0 = a[i - 2].pow(2);
@@ -77,7 +78,7 @@ fn main() {
     // -----------
     //  x - g[0]
     let numerator = &f - &x(a[0], 0);
-    let denominator = [F::from(1), -g[0]].into();
+    let denominator = Polynomial::from([F::one(), -g[0]]);
     let (c0, c0r) = Polynomial::<F>::div(numerator, denominator);
 
     // Constraint 1:
@@ -85,7 +86,7 @@ fn main() {
     // --------------
     //  x - g[1022]
     let numerator = &f - &x(a[1022], 0);
-    let denominator = [F::from(1), -g[1022]].into();
+    let denominator = Polynomial::from([F::one(), -g[1022]]);
     let (c1, c1r) = Polynomial::<F>::div(numerator, denominator);
 
     // Constraint 2:
@@ -98,18 +99,17 @@ fn main() {
     let t2 = &f * &f;
     let numerator = t0 - t1 - t2;
 
-    let denominator = x(F::from(1), 1024) - x(F::from(1), 0);
-    let (denominator, r0) = Polynomial::<F>::div(denominator, [F::from(1), -g[1021]].into());
-    let (denominator, r1) = Polynomial::<F>::div(denominator, [F::from(1), -g[1022]].into());
-    let (denominator, r2) = Polynomial::<F>::div(denominator, [F::from(1), -g[1023]].into());
+    let denominator = x(F::one(), 1024) - x(F::one(), 0);
+    let tp0 = Polynomial::from([F::one(), -g[1021]]);
+    let tp1 = Polynomial::from([F::one(), -g[1022]]);
+    let tp2 = Polynomial::from([F::one(), -g[1023]]);
+    let (denominator, t2r) = Polynomial::<F>::div(denominator, &tp2 * &tp0 * tp1);
     let (c2, c2r) = Polynomial::<F>::div(numerator, denominator);
 
     // Assert constraints have no remainders
     assert_eq!(c0r.degree(), None);
     assert_eq!(c1r.degree(), None);
-    assert_eq!(r0.degree(), None);
-    assert_eq!(r1.degree(), None);
-    assert_eq!(r2.degree(), None);
+    assert_eq!(t2r.degree(), None);
     assert_eq!(c2r.degree(), None);
 
     // Assert constraints resolve correctly
