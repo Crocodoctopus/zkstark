@@ -12,7 +12,7 @@ fn main() {
     let mut channel = channel::Channel::new();
 
     ///////////////////
-    // Part 1:
+    // Part 1
 
     // The trace sequence
     let mut a = [F::zero(); 1023];
@@ -119,9 +119,9 @@ fn main() {
     assert_eq!(c2.solve(F::from(31415)).residue(), 2090051528);
 
     // Generate composition polynomial (normally, these would be random)
-    let a0 = channel.get_random_element(); //F::from(0);
-    let a1 = channel.get_random_element(); //F::from(787618507);
-    let a2 = channel.get_random_element(); //F::from(-1067186547);
+    let a0 = channel.get_alpha0(); //F::from(0);
+    let a1 = channel.get_alpha1(); //F::from(787618507);
+    let a2 = channel.get_alpha2(); //F::from(-1067186547);
     let cp = c0 * x(a0, 0) + c1 * x(a1, 0) + c2 * x(a2, 0);
 
     // Assert composition polynomial resolves correctly
@@ -132,12 +132,12 @@ fn main() {
     let cp_eval: Vec<F> = eval_domain.iter().map(|&n| cp.solve(n)).collect();
 
     // Assert a few elements of cp_eval are correct
-    /*assert_eq!(cp_eval[0].residue(), 551740506);
+    assert_eq!(cp_eval[0].residue(), 551740506);
     assert_eq!(cp_eval[1].residue(), 716458408);
     assert_eq!(cp_eval[2].residue(), 2091260387);
     assert_eq!(cp_eval[8189].residue(), 412406999);
     assert_eq!(cp_eval[8190].residue(), 782538909);
-    assert_eq!(cp_eval[8191].residue(), 811632985);*/
+    assert_eq!(cp_eval[8191].residue(), 811632985);
 
     // Generate merkle tree from cp_eval
     let cp_eval_merkle_root = [2u8; 32];
@@ -161,7 +161,7 @@ fn main() {
         }
 
         // Get new fri poly
-        let beta = channel.get_random_element();
+        let beta = channel.get_beta(i);
         let fri_poly = polynomial::fri::<F>(cp_polys.last().unwrap(), beta);
 
         // Solve over new domain
@@ -172,10 +172,10 @@ fn main() {
         cp_evals.push(fri_eval);
 
         // Generate merkle tree from fri_eval
-        let fri_eval_merkle_root = [i + 3; 32];
+        let fri_eval_merkle_root = [(i + 3) as u8; 32];
 
         // Commit fri_eval merkle root
-        channel.commit_fri_eval_merkle_root(i as usize, fri_eval_merkle_root);
+        channel.commit_fri_eval_merkle_root(i, fri_eval_merkle_root);
     }
 
     // Assert the degree of the FRI polynomials
@@ -206,4 +206,7 @@ fn main() {
 
     // Commit free term of the final polynomial
     channel.commit_fri_free_term(cp_polys[10][0].residue());
+
+    ///////////////////
+    // Part 4
 }
