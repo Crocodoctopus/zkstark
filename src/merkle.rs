@@ -47,6 +47,7 @@ impl Merkle {
 
     pub fn trace(&self, mut i: usize) -> Box<[[u8; 32]]> {
         let mut v = vec![];
+        i += self.0.len() / 2;
 
         while i != 0 {
             // If right
@@ -131,18 +132,18 @@ fn merkle_test() {
     assert_eq!(merkle[6], i6);
 
     // Trace test on merkle
+    let trace0 = merkle.trace(0);
+    let trace1 = merkle.trace(1);
+    let trace2 = merkle.trace(2);
     let trace3 = merkle.trace(3);
-    let trace4 = merkle.trace(4);
-    let trace5 = merkle.trace(5);
-    let trace6 = merkle.trace(6);
 
     // Assert traces
-    assert_eq!(trace3[0], i4);
-    assert_eq!(trace3[1], i2);
-    assert_eq!(trace4[0], i3);
-    assert_eq!(trace4[1], i2);
-    assert_eq!(trace5[0], i6);
-    assert_eq!(trace5[1], i1);
-    assert_eq!(trace6[0], i5);
-    assert_eq!(trace6[1], i1);
+    assert_eq!(trace0[0], i4);
+    assert_eq!(trace0[1], i2);
+    assert_eq!(trace1[0], i3);
+    assert_eq!(trace1[1], i2);
+    assert_eq!(trace2[0], i6);
+    assert_eq!(trace2[1], i1);
+    assert_eq!(trace3[0], i5);
+    assert_eq!(trace3[1], i1);
 }

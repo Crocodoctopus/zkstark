@@ -46,16 +46,16 @@ fn main() {
 
     // Generate lagrange polynomial going through points (g[i], a[i]) for i <= 1022
     let points: Vec<(F, F)> = std::iter::zip(&g, &a).map(|(&x, &y)| (x, y)).collect();
-    let f = lagrange::<F>(&points);
+    let f_poly = lagrange::<F>(&points);
 
     // Assert that the polynomial has the correct solutions
     for (x, y) in std::iter::zip(&g, &a) {
-        assert_eq!(f.solve(*x), *y);
+        assert_eq!(f_poly.solve(*x), *y);
     }
 
     // Solve polynomial over h, shifted by the primitive root
-    let eval_domain: Vec<F> = h.iter().map(|n| primitive_root * *n).collect();
-    let f_eval: Vec<F> = eval_domain.iter().map(|&n| f.solve(n)).collect();
+    let f_domain: Vec<F> = h.iter().map(|n| primitive_root * *n).collect();
+    let f_eval: Vec<F> = f_domain.iter().map(|&n| f_poly.solve(n)).collect();
 
     // Assert a few elements of eval are correct
     assert_eq!(f_eval[0].residue(), 576067152);
@@ -80,7 +80,7 @@ fn main() {
     // f(x) - a[0]
     // -----------
     //  x - g[0]
-    let numerator = &f - &x(a[0], 0);
+    let numerator = &f_poly - &x(a[0], 0);
     let denominator = Polynomial::from([F::one(), -g[0]]);
     let (c0, c0r) = Polynomial::<F>::div(numerator, denominator);
 
@@ -88,7 +88,7 @@ fn main() {
     // f(x) - a[1022]
     // --------------
     //  x - g[1022]
-    let numerator = &f - &x(a[1022], 0);
+    let numerator = &f_poly - &x(a[1022], 0);
     let denominator = Polynomial::from([F::one(), -g[1022]]);
     let (c1, c1r) = Polynomial::<F>::div(numerator, denominator);
 
@@ -96,10 +96,10 @@ fn main() {
     //              f(g^2 x) - f(g x)^2 - f(x)^2
     // ------------------------------------------------------
     // (x^1024 - 1)/(x - g[1021])/(x - g[1022])/(x - g[1023])
-    let t0 = f.clone().apply_const(g[2]);
-    let t1 = f.clone().apply_const(g[1]);
+    let t0 = f_poly.clone().apply_const(g[2]);
+    let t1 = f_poly.clone().apply_const(g[1]);
     let t1 = &t1 * &t1;
-    let t2 = &f * &f;
+    let t2 = &f_poly * &f_poly;
     let numerator = t0 - t1 - t2;
 
     let denominator = x(F::one(), 1024) - x(F::one(), 0);
@@ -125,14 +125,15 @@ fn main() {
     let a0 = channel.get_alpha0(); //F::from(0);
     let a1 = channel.get_alpha1(); //F::from(787618507);
     let a2 = channel.get_alpha2(); //F::from(-1067186547);
-    let cp = c0 * x(a0, 0) + c1 * x(a1, 0) + c2 * x(a2, 0);
+    let cp_poly = c0 * x(a0, 0) + c1 * x(a1, 0) + c2 * x(a2, 0);
 
     // Assert composition polynomial resolves correctly
-    assert_eq!(cp.degree(), Some(1023));
+    assert_eq!(cp_poly.degree(), Some(1023));
     //assert_eq!(cp.solve(F::from(2439804)).residue(), 838767343);
 
-    // Evaluate cp over eval_domain
-    let cp_eval: Vec<F> = eval_domain.iter().map(|&n| cp.solve(n)).collect();
+    // Evaluate cp over f_domain
+    let cp_domain = f_domain;
+    let cp_eval: Vec<F> = cp_domain.iter().map(|&n| cp_poly.solve(n)).collect();
 
     // Assert a few elements of cp_eval are correct
     assert_eq!(cp_eval[0].residue(), 551740506);
@@ -152,22 +153,23 @@ fn main() {
     ///////////////////
     // Part 3
 
+    let mut cp_polys: Vec<Polynomial<F>> = vec![cp_poly];
+    let mut cp_domains: Vec<Vec<F>> = vec![cp_domain];
     let mut cp_evals: Vec<Vec<F>> = vec![cp_eval];
-    let mut cp_polys: Vec<Polynomial<F>> = vec![cp];
     let mut cp_eval_merkles: Vec<Merkle> = vec![cp_eval_merkle];
 
     // Perform FRI operation
-    let mut fri_domain = eval_domain;
     for i in 0..10 {
+        // Get new fri poly
+        let beta = channel.get_beta(i);
+        let fri_poly = polynomial::fri::<F>(cp_polys.last().unwrap(), beta);
+
         // Get new fri domain
+        let mut fri_domain = cp_domains.last().unwrap().clone();
         fri_domain.truncate(fri_domain.len() / 2);
         for e in &mut fri_domain {
             *e = e.pow(2);
         }
-
-        // Get new fri poly
-        let beta = channel.get_beta(i);
-        let fri_poly = polynomial::fri::<F>(cp_polys.last().unwrap(), beta);
 
         // Solve over new domain
         let fri_eval: Vec<_> = fri_domain.iter().map(|&n| fri_poly.solve(n)).collect();
@@ -178,6 +180,7 @@ fn main() {
 
         // Push
         cp_polys.push(fri_poly);
+        cp_domains.push(fri_domain);
         cp_evals.push(fri_eval);
         cp_eval_merkles.push(fri_eval_merkle);
 
@@ -220,18 +223,16 @@ fn main() {
     // Get test point
     let x = channel.get_test_point();
 
-    /*
-        // Decommit on trace
-        let fx = f_eval[x];
-        let fx_auth_path = ..;
-        channel.commit_fx(fx, fx_auth_path);
-        let fgx = f_eval[x + 8];
-        let fgx_auth_path = ..;
-        channel.commit_fgx(fgx, fgx_auth_path);
-        let fggx = f_eval[x + 16];
-        let fggx_auth_path = ..;
-        channel.commit_fgx(fggx, fggx_auth_path);
-    */
+    // Decommit on trace
+    let fx = f_eval[x].residue();
+    let fx_auth_path = f_eval_merkle.trace(x);
+    channel.commit_fx(fx, fx_auth_path);
+    let fgx = f_eval[x + 8].residue();
+    let fgx_auth_path = f_eval_merkle.trace(x + 8);
+    channel.commit_fgx(fgx, fgx_auth_path);
+    let fggx = f_eval[x + 16].residue();
+    let fggx_auth_path = f_eval_merkle.trace(x + 16);
+    channel.commit_fggx(fggx, fggx_auth_path);
 
     channel.print();
 }

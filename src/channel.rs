@@ -1,6 +1,5 @@
 use crate::field::Gf;
 
-#[derive(Clone, Debug)]
 pub struct Channel {
     state: [u8; 32],
 
@@ -16,6 +15,9 @@ pub struct Channel {
 
     // Decommit
     test_point: Option<usize>,
+    fx: Option<(u32, Box<[[u8; 32]]>)>,
+    fgx: Option<(u32, Box<[[u8; 32]]>)>,
+    fggx: Option<(u32, Box<[[u8; 32]]>)>,
 }
 
 impl Channel {
@@ -32,11 +34,15 @@ impl Channel {
             fri_eval_merkle_roots: [None; 10],
             fri_free_term: None,
             test_point: None,
+            fx: None,
+            fgx: None,
+            fggx: None,
         }
     }
 
     pub fn print(&self) {
         println!("Channel output:");
+        println!("  // Commit");
         println!(
             "  f_eval_merkle_root: {:02X?}",
             self.f_eval_merkle_root.unwrap()
@@ -58,6 +64,8 @@ impl Channel {
             );
         }
         println!("  fri_free_term: {:?}", self.fri_free_term.unwrap());
+        println!("  // Decommit");
+        println!("  fx: {:?}", self.fx.as_ref().unwrap());
     }
 
     pub fn commit_f_eval_merkle_root(&mut self, merkle: [u8; 32]) {
@@ -108,5 +116,20 @@ impl Channel {
         assert_eq!(self.test_point, None);
         self.test_point = Some(5);
         5
+    }
+
+    pub fn commit_fx(&mut self, fx: u32, fx_auth_path: Box<[[u8; 32]]>) {
+        assert_eq!(self.fx, None);
+        self.fx = Some((fx, fx_auth_path));
+    }
+
+    pub fn commit_fgx(&mut self, fgx: u32, fgx_auth_path: Box<[[u8; 32]]>) {
+        assert_eq!(self.fgx, None);
+        self.fgx = Some((fgx, fgx_auth_path));
+    }
+
+    pub fn commit_fggx(&mut self, fggx: u32, fggx_auth_path: Box<[[u8; 32]]>) {
+        assert_eq!(self.fggx, None);
+        self.fggx = Some((fggx, fggx_auth_path));
     }
 }
