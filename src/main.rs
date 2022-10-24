@@ -2,6 +2,7 @@ mod channel;
 mod field;
 mod merkle;
 mod polynomial;
+mod proof;
 
 use merkle::Merkle;
 use num_traits::Pow;
@@ -221,18 +222,26 @@ fn main() {
     // Part 4
 
     // Get test point
-    let x = channel.get_test_point();
+    let x = channel.get_test_point() as usize;
 
     // Decommit on trace
     let fx = f_eval[x].residue();
     let fx_auth_path = f_eval_merkle.trace(x);
     channel.commit_fx(fx, fx_auth_path);
+
     let fgx = f_eval[x + 8].residue();
     let fgx_auth_path = f_eval_merkle.trace(x + 8);
     channel.commit_fgx(fgx, fgx_auth_path);
+
     let fggx = f_eval[x + 16].residue();
     let fggx_auth_path = f_eval_merkle.trace(x + 16);
     channel.commit_fggx(fggx, fggx_auth_path);
 
-    channel.print();
+    let cp0x = cp_evals[0][x].residue();
+    let cp0x_auth_path = cp_eval_merkles[0].trace(x);
+    channel.commit_cp0x(cp0x, cp0x_auth_path);
+
+    // VERIFY:
+    let proof = channel.into_proof();
+    assert_eq!(proof.verify(), true);
 }
