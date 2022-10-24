@@ -1,12 +1,14 @@
 mod channel;
 mod field;
+mod merkle;
 mod polynomial;
 
+use merkle::Merkle;
 use num_traits::Pow;
 use polynomial::{lagrange, Polynomial};
 
 type F = field::Gf<3221225473>;
-use num_traits::{Zero, One};
+use num_traits::{One, Zero};
 
 fn main() {
     let mut channel = channel::Channel::new();
@@ -30,7 +32,7 @@ fn main() {
     // Generate a primitive root of F_3221225473
     let primitive_root = F::generator();
 
-    // Create generators cyclic groups of sizes 1024 and 8192
+    // Create generators for cyclic groups of sizes 1024 and 8192
     let generator_g = primitive_root.pow(3145728);
     let generator_h = primitive_root.pow(393216);
 
@@ -64,7 +66,8 @@ fn main() {
     assert_eq!(f_eval[8191].residue(), 1076821037);
 
     // Generate merkle tree from f_eval
-    let f_eval_merkle_root = [1; 32]; // [TODO]
+    let f_eval_merkle = Merkle::new(1024, f_eval.iter().map(|f| f.residue()));
+    let f_eval_merkle_root = f_eval_merkle[0];
 
     // Commit f_eval merkle root
     channel.commit_f_eval_merkle_root(f_eval_merkle_root);
@@ -140,7 +143,8 @@ fn main() {
     assert_eq!(cp_eval[8191].residue(), 811632985);
 
     // Generate merkle tree from cp_eval
-    let cp_eval_merkle_root = [2u8; 32];
+    let cp_eval_merkle = Merkle::new(8192, cp_eval.iter().map(|f| f.residue()));
+    let cp_eval_merkle_root = cp_eval_merkle[0];
 
     // Commit cp_eval merkle root
     channel.commit_cp_eval_merkle_root(cp_eval_merkle_root);
@@ -150,6 +154,7 @@ fn main() {
 
     let mut cp_evals: Vec<Vec<F>> = vec![cp_eval];
     let mut cp_polys: Vec<Polynomial<F>> = vec![cp];
+    let mut cp_eval_merkles: Vec<Merkle> = vec![cp_eval_merkle];
 
     // Perform FRI operation
     let mut fri_domain = eval_domain;
@@ -165,14 +170,16 @@ fn main() {
         let fri_poly = polynomial::fri::<F>(cp_polys.last().unwrap(), beta);
 
         // Solve over new domain
-        let fri_eval = fri_domain.iter().map(|&n| fri_poly.solve(n)).collect();
+        let fri_eval: Vec<_> = fri_domain.iter().map(|&n| fri_poly.solve(n)).collect();
+
+        // Generate merkle tree from fri_eval
+        let fri_eval_merkle = Merkle::new(fri_domain.len(), fri_eval.iter().map(|f| f.residue()));
+        let fri_eval_merkle_root = fri_eval_merkle[0];
 
         // Push
         cp_polys.push(fri_poly);
         cp_evals.push(fri_eval);
-
-        // Generate merkle tree from fri_eval
-        let fri_eval_merkle_root = [(i + 3) as u8; 32];
+        cp_eval_merkles.push(fri_eval_merkle);
 
         // Commit fri_eval merkle root
         channel.commit_fri_eval_merkle_root(i, fri_eval_merkle_root);
@@ -209,4 +216,22 @@ fn main() {
 
     ///////////////////
     // Part 4
+
+    // Get test point
+    let x = channel.get_test_point();
+
+    /*
+        // Decommit on trace
+        let fx = f_eval[x];
+        let fx_auth_path = ..;
+        channel.commit_fx(fx, fx_auth_path);
+        let fgx = f_eval[x + 8];
+        let fgx_auth_path = ..;
+        channel.commit_fgx(fgx, fgx_auth_path);
+        let fggx = f_eval[x + 16];
+        let fggx_auth_path = ..;
+        channel.commit_fgx(fggx, fggx_auth_path);
+    */
+
+    channel.print();
 }
