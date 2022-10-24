@@ -58,25 +58,50 @@ impl Merkle {
                 v.push(self[i + 1]);
                 i -= 1;
             }
-            i /= 2;
+            i >>= 1;
         }
 
         v.into_boxed_slice()
     }
 }
 
-/*
-0
-1 2
-3 4 5 6
-7 8 9 a b c d
-*/
-
 impl Index<usize> for Merkle {
     type Output = [u8; 32];
     fn index(&self, i: usize) -> &Self::Output {
         &self.0[i]
     }
+}
+
+pub fn compute_root_from_path(element: u32, mut index: usize, path: &Box<[[u8; 32]]>) -> [u8; 32] {
+    // BITS
+    index += (1 << path.len()) - 1;
+
+    // Generate current hash
+    let mut hasher = Sha256::new();
+    hasher.update(element.to_be_bytes());
+    let mut current = hasher.finalize().into();
+
+    // Step through the path
+    for hash in path.iter() {
+        // If index is a right node
+        if index % 2 == 0 {
+            let mut hasher = Sha256::new();
+            hasher.update(hash);
+            hasher.update(current);
+            current = hasher.finalize().into();
+            index -= 2;
+        } else {
+            let mut hasher = Sha256::new();
+            hasher.update(current);
+            hasher.update(hash);
+            current = hasher.finalize().into();
+            index -= 1;
+        }
+        index >>= 1;
+    }
+
+    // Return final hash
+    return current;
 }
 
 #[test]
@@ -146,4 +171,7 @@ fn merkle_test() {
     assert_eq!(trace2[1], i1);
     assert_eq!(trace3[0], i5);
     assert_eq!(trace3[1], i1);
+
+    // Assert compute
+    assert_eq!(compute_root_from_path(0x01, 0, &trace0), merkle[0]);
 }

@@ -67,7 +67,7 @@ fn main() {
     assert_eq!(f_eval[8191].residue(), 1076821037);
 
     // Generate merkle tree from f_eval
-    let f_eval_merkle = Merkle::new(1024, f_eval.iter().map(|f| f.residue()));
+    let f_eval_merkle = Merkle::new(8192, f_eval.iter().map(|f| f.residue()));
     let f_eval_merkle_root = f_eval_merkle[0];
 
     // Commit f_eval merkle root
@@ -243,5 +243,5 @@ fn main() {
 
     // VERIFY:
     let proof = channel.into_proof();
-    assert_eq!(proof.verify(), true);
+    assert_eq!(proof.verify(), Ok(()));
 }
