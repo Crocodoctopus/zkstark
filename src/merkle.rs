@@ -10,12 +10,13 @@ pub type Hash = [u8; 32];
 pub type AuthPath = Box<[Hash]>;
 
 impl Merkle {
-    pub fn new(size: usize, data: impl Iterator<Item = u32>) -> Self {
-        // Calculate size
+    /// Constructs a pow-of-2 merkle tree as a heap
+    pub fn new(mut size: usize, data: impl Iterator<Item = u32>) -> Self {
+        // Calculate size (ensure size is power of two)
         let mut i = size;
-        let mut size = size;
-        while i != 0 {
-            i /= 2;
+        while i != 1 {
+            assert_eq!(i % 2, 0);
+            i >>= 1;
             size += i;
         }
 
@@ -49,16 +50,17 @@ impl Merkle {
         Self(out.into_boxed_slice())
     }
 
+    /// Generate an authentication path for a leaf node
     pub fn trace(&self, mut i: usize) -> AuthPath {
-        let mut v = vec![];
         i += self.0.len() / 2;
-
+        let mut v = vec![];
         while i != 0 {
-            // If right
             if i % 2 == 0 {
+                // Right node, store left
                 v.push(self[i - 1]);
                 i -= 2;
             } else {
+                // Left node, store right
                 v.push(self[i + 1]);
                 i -= 1;
             }
@@ -76,8 +78,9 @@ impl Index<usize> for Merkle {
     }
 }
 
+/// Follows an authentication path, starting from an element and it's leaf index
 pub fn compute_root_from_path(element: u32, mut index: usize, path: &AuthPath) -> Hash {
-    // BITS
+    // Correct index based on path length
     index += (1 << path.len()) - 1;
 
     // Generate current hash
@@ -88,19 +91,17 @@ pub fn compute_root_from_path(element: u32, mut index: usize, path: &AuthPath) -
     // Step through the path
     for hash in path.iter() {
         // If index is a right node
+        let mut hasher = Sha256::new();
         if index % 2 == 0 {
-            let mut hasher = Sha256::new();
             hasher.update(hash);
             hasher.update(current);
-            current = hasher.finalize().into();
             index -= 2;
         } else {
-            let mut hasher = Sha256::new();
             hasher.update(current);
             hasher.update(hash);
-            current = hasher.finalize().into();
             index -= 1;
         }
+        current = hasher.finalize().into();
         index >>= 1;
     }
 

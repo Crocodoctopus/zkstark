@@ -1,6 +1,7 @@
 use crate::field::Gf;
 use crate::merkle::{AuthPath, Hash};
 use crate::proof::Proof;
+use crate::F;
 
 pub struct Channel {
     state: Hash,
@@ -99,19 +100,19 @@ impl Channel {
         self.f_eval_merkle_root = Some(merkle);
     }
 
-    pub fn get_alpha0(&mut self) -> Gf<3221225473> {
+    pub fn get_alpha0(&mut self) -> F {
         assert_eq!(self.alpha0, None);
         self.alpha0 = Some(0);
         Gf::from(self.alpha0.unwrap())
     }
 
-    pub fn get_alpha1(&mut self) -> Gf<3221225473> {
+    pub fn get_alpha1(&mut self) -> F {
         assert_eq!(self.alpha1, None);
         self.alpha1 = Some(787618507);
         Gf::from(self.alpha1.unwrap())
     }
 
-    pub fn get_alpha2(&mut self) -> Gf<3221225473> {
+    pub fn get_alpha2(&mut self) -> F {
         assert_eq!(self.alpha2, None);
         self.alpha2 = Some(2154038926);
         Gf::from(self.alpha2.unwrap())
@@ -122,7 +123,7 @@ impl Channel {
         self.cp_eval_merkle_root = Some(merkle);
     }
 
-    pub fn get_beta(&mut self, i: usize) -> Gf<3221225473> {
+    pub fn get_beta(&mut self, i: usize) -> F {
         assert_eq!(self.betas[i], None);
         self.betas[i] = Some(3);
         Gf::from(self.betas[i].unwrap())
@@ -140,8 +141,8 @@ impl Channel {
 
     pub fn get_test_point(&mut self) -> u32 {
         assert_eq!(self.test_point, None);
-        self.test_point = Some(3);
-        3
+        self.test_point = Some(27);
+        self.test_point.unwrap()
     }
 
     pub fn decommit_trace_f_x(&mut self, f_x: u32, f_x_auth_path: AuthPath) {

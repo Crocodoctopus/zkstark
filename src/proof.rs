@@ -27,6 +27,9 @@ pub struct Proof {
 }
 
 impl Proof {
+    // Verify that a proof is correct. The video series doesn't go into this part,
+    // but we should still be able to get something good just based on our understanding
+    // of how the data was generated in the first place.
     pub fn verify(&self) {
         // Protocol consts
         let primitive_root = F::generator();
@@ -85,6 +88,9 @@ impl Proof {
             let (cp1_xx, _, _, _) = self.fri_layers[n + 1];
             let x = f_domain[test_point].pow(2u32.pow(n as u32));
 
+            // NOTE: the tutorial video got this part wrong!!
+            // The numerator of g(x^2) is NOT cp(x) - cp(-x), it is cp(x) + cp(-x)
+            // cp(x) - cp(-x) will yield something closer to h(x^2) and give bad results
             let g_xx = (F::from(cp0_x) + F::from(cp0_nx)) / F::from(2);
             let h_xx = (F::from(cp0_x) - F::from(cp0_nx)) / (x * 2);
             let calc_cp1_xx = g_xx + self.betas[n] * h_xx;
