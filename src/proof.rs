@@ -2,13 +2,6 @@ use crate::merkle::{self, AuthPath, Hash};
 use crate::F;
 use num_traits::Pow;
 
-#[derive(PartialEq, Debug)]
-pub enum ProofErr {
-    //
-    CpMismatch(u32),
-    AuthPathErr(&'static str),
-}
-
 pub struct Proof {
     // State
     pub init_state: Hash,
@@ -34,7 +27,7 @@ pub struct Proof {
 }
 
 impl Proof {
-    pub fn verify(&self) -> Result<(), ProofErr> {
+    pub fn verify(&self) {
         // Protocol consts
         let primitive_root = F::generator();
         let generator_g = primitive_root.pow(3145728);
@@ -46,8 +39,11 @@ impl Proof {
         ///////////////////
         // Prove trace
 
+        // Wrap test point to range 0..8176
+        let test_point = self.test_point as usize % (8192 - 16);
+
         // Verify computation
-        let x = f_domain[self.test_point as usize];
+        let x = f_domain[test_point];
         let f_x = F::from(self.f_x.0);
         let f_gx = F::from(self.f_gx.0);
         let f_ggx = F::from(self.f_ggx.0);
@@ -59,42 +55,25 @@ impl Proof {
         let cp0 = self.alpha0 * p0 + self.alpha1 * p1 + self.alpha2 * p2;
 
         //
-        if cp0.residue() != self.cp0_x.0 {
-            return Err(ProofErr::CpMismatch(cp0.residue()));
-        }
+        assert_eq!(cp0.residue(), self.cp0_x.0);
 
         // Verify trace
-        if merkle::compute_root_from_path(self.f_x.0, self.test_point as _, &self.f_x.1)
-            != self.f_eval_merkle_root
-        {
-            return Err(ProofErr::AuthPathErr(
-                "Auth path for f(x) doesn't evaluate to merkle root.",
-            ));
-        }
-        if merkle::compute_root_from_path(self.f_gx.0, self.test_point as usize + 8, &self.f_gx.1)
-            != self.f_eval_merkle_root
-        {
-            return Err(ProofErr::AuthPathErr(
-                "Auth path for f(gx) doesn't evalutate to merkle root.",
-            ));
-        }
-        if merkle::compute_root_from_path(
-            self.f_ggx.0,
-            self.test_point as usize + 16,
-            &self.f_ggx.1,
-        ) != self.f_eval_merkle_root
-        {
-            return Err(ProofErr::AuthPathErr(
-                "Auth path for f(ggx) doesn't evalutate to merkle root.",
-            ));
-        }
-        if merkle::compute_root_from_path(self.cp0_x.0, self.test_point as _, &self.cp0_x.1)
-            != self.cp_eval_merkle_root
-        {
-            return Err(ProofErr::AuthPathErr(
-                "Auth path for cp0(x) doesn't evalutate to merkle root.",
-            ));
-        }
+        assert_eq!(
+            merkle::compute_root_from_path(self.f_x.0, test_point, &self.f_x.1),
+            self.f_eval_merkle_root
+        );
+        assert_eq!(
+            merkle::compute_root_from_path(self.f_gx.0, test_point + 8, &self.f_gx.1),
+            self.f_eval_merkle_root
+        );
+        assert_eq!(
+            merkle::compute_root_from_path(self.f_ggx.0, test_point + 16, &self.f_ggx.1),
+            self.f_eval_merkle_root
+        );
+        assert_eq!(
+            merkle::compute_root_from_path(self.cp0_x.0, test_point, &self.cp0_x.1),
+            self.cp_eval_merkle_root
+        );
 
         ///////////////////
         // Prove FRI layers
@@ -104,7 +83,7 @@ impl Proof {
             // Get cp(x) and cp(-x) for layer n, and cp(x^2) for layer n + 1
             let (cp0_x, _, cp0_nx, _) = self.fri_layers[n];
             let (cp1_xx, _, _, _) = self.fri_layers[n + 1];
-            let x = f_domain[self.test_point as usize].pow(2u32.pow(n as u32));
+            let x = f_domain[test_point].pow(2u32.pow(n as u32));
 
             let g_xx = (F::from(cp0_x) + F::from(cp0_nx)) / F::from(2);
             let h_xx = (F::from(cp0_x) - F::from(cp0_nx)) / (x * 2);
@@ -115,58 +94,39 @@ impl Proof {
         // Verify computation for layer 9 and free term
         let (cp9_x, _, cp9_nx, _) = self.fri_layers[9];
         let cp10_xx = self.fri_free_term;
-        let x = f_domain[self.test_point as usize].pow(2u32.pow(9 as u32));
+        let x = f_domain[test_point].pow(2u32.pow(9 as u32));
 
         let g_xx = (F::from(cp9_x) + F::from(cp9_nx)) / F::from(2);
         let h_xx = (F::from(cp9_x) - F::from(cp9_nx)) / (x * 2);
         let calc_cp10_xx = g_xx + self.betas[9] * h_xx;
         assert_eq!(cp10_xx, calc_cp10_xx.residue());
 
-        // Verify auth path for first layer
-        let mut size = 8192;
-        let (cp0_x, cp0_x_auth_path, cp0_nx, cp0_nx_auth_path) = &self.fri_layers[0];
-        assert_eq!(
-            merkle::compute_root_from_path(
-                *cp0_x,
-                self.test_point as usize % size,
-                cp0_x_auth_path
-            ),
-            self.cp_eval_merkle_root,
-        );
-        assert_eq!(
-            merkle::compute_root_from_path(
-                *cp0_nx,
-                (self.test_point as usize + size / 2) % size,
-                cp0_nx_auth_path
-            ),
-            self.cp_eval_merkle_root,
-        );
-        size >>= 1;
-
-        // Verify auth paths for last 9 layers
-        for n in 1..10 {
+        // Verify auth paths for FRI layers
+        for n in 0..10 {
+            // Get data for FRI layer n
+            let size = 8192 >> n;
             let (cp0_x, cp0_x_auth_path, cp0_nx, cp0_nx_auth_path) = &self.fri_layers[n];
+            let merkle_root = if n > 0 {
+                self.fri_eval_merkle_roots[n - 1]
+            } else {
+                // Note: for layer 0, the merkle root is the cp_eval root
+                self.cp_eval_merkle_root
+            };
+
+            //
             assert_eq!(
-                merkle::compute_root_from_path(
-                    *cp0_x,
-                    self.test_point as usize % size,
-                    cp0_x_auth_path
-                ),
-                self.fri_eval_merkle_roots[n - 1],
+                merkle::compute_root_from_path(*cp0_x, test_point % size, cp0_x_auth_path),
+                merkle_root,
             );
             assert_eq!(
                 merkle::compute_root_from_path(
                     *cp0_nx,
-                    (self.test_point as usize + size / 2) % size,
+                    (test_point + size / 2) % size,
                     cp0_nx_auth_path
                 ),
-                self.fri_eval_merkle_roots[n - 1],
+                merkle_root,
             );
-            size >>= 1;
         }
-
-        // Proof success
-        Ok(())
     }
 
     pub fn size(&self) -> usize {
