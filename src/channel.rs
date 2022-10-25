@@ -10,7 +10,7 @@ pub struct Channel {
     pub alpha1: Option<u32>,
     pub alpha2: Option<u32>,
     cp_eval_merkle_root: Option<[u8; 32]>,
-    betas: [Option<u32>; 10],
+    pub betas: [Option<u32>; 10],
     fri_eval_merkle_roots: [Option<[u8; 32]>; 10],
     fri_free_term: Option<u32>,
 
@@ -20,6 +20,7 @@ pub struct Channel {
     fgx: Option<(u32, Box<[[u8; 32]]>)>,
     fggx: Option<(u32, Box<[[u8; 32]]>)>,
     cp0x: Option<(u32, Box<[[u8; 32]]>)>,
+    fri_layers: Vec<(u32, Box<[[u8; 32]]>, u32, Box<[[u8; 32]]>)>,
 }
 
 impl Channel {
@@ -41,6 +42,7 @@ impl Channel {
             fgx: None,
             fggx: None,
             cp0x: None,
+            fri_layers: Vec::with_capacity(10),
         }
     }
 
@@ -87,6 +89,7 @@ impl Channel {
             fgx: self.fgx.unwrap(),
             fggx: self.fggx.unwrap(),
             cp0x: self.cp0x.unwrap(),
+            fri_layers: self.fri_layers.into_boxed_slice(),
         }
     }
 
@@ -169,23 +172,34 @@ impl Channel {
         2
     }
 
-    pub fn commit_fx(&mut self, fx: u32, fx_auth_path: Box<[[u8; 32]]>) {
+    pub fn decommit_trace_fx(&mut self, fx: u32, fx_auth_path: Box<[[u8; 32]]>) {
         assert_eq!(self.fx, None);
         self.fx = Some((fx, fx_auth_path));
     }
 
-    pub fn commit_fgx(&mut self, fgx: u32, fgx_auth_path: Box<[[u8; 32]]>) {
+    pub fn decommit_trace_fgx(&mut self, fgx: u32, fgx_auth_path: Box<[[u8; 32]]>) {
         assert_eq!(self.fgx, None);
         self.fgx = Some((fgx, fgx_auth_path));
     }
 
-    pub fn commit_fggx(&mut self, fggx: u32, fggx_auth_path: Box<[[u8; 32]]>) {
+    pub fn decommit_trace_fggx(&mut self, fggx: u32, fggx_auth_path: Box<[[u8; 32]]>) {
         assert_eq!(self.fggx, None);
         self.fggx = Some((fggx, fggx_auth_path));
     }
 
-    pub fn commit_cp0x(&mut self, cp0x: u32, cp0x_auth_path: Box<[[u8; 32]]>) {
+    pub fn decommit_trace_cp0x(&mut self, cp0x: u32, cp0x_auth_path: Box<[[u8; 32]]>) {
         assert_eq!(self.cp0x, None);
         self.cp0x = Some((cp0x, cp0x_auth_path));
+    }
+
+    pub fn decommit_fri_layer(
+        &mut self,
+        cpx: u32,
+        cpx_auth_path: Box<[[u8; 32]]>,
+        cpnx: u32,
+        cpnx_auth_path: Box<[[u8; 32]]>,
+    ) {
+        self.fri_layers
+            .push((cpx, cpx_auth_path, cpnx, cpnx_auth_path));
     }
 }

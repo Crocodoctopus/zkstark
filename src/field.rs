@@ -86,6 +86,13 @@ impl<const P: u32> Gf<P> {
     }
 }
 
+impl<const P: u32> std::ops::Rem<u32> for Gf<P> {
+    type Output = Self;
+    fn rem(self, rhs: u32) -> Self::Output {
+        Self(self.0.convert(self.0.residue() % rhs))
+    }
+}
+
 impl<const P: u32> std::ops::Add for Gf<P> {
     type Output = Self;
     fn add(self, rhs: Self) -> Self::Output {

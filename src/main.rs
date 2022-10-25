@@ -176,7 +176,7 @@ fn main() {
         let fri_eval: Vec<_> = fri_domain.iter().map(|&n| fri_poly.solve(n)).collect();
 
         // Generate merkle tree from fri_eval
-        let fri_eval_merkle = Merkle::new(fri_domain.len(), fri_eval.iter().map(|f| f.residue()));
+        let fri_eval_merkle = Merkle::new(fri_eval.len(), fri_eval.iter().map(|f| f.residue()));
         let fri_eval_merkle_root = fri_eval_merkle[0];
 
         // Push
@@ -227,21 +227,37 @@ fn main() {
     // Decommit on trace
     let fx = f_eval[x].residue();
     let fx_auth_path = f_eval_merkle.trace(x);
-    channel.commit_fx(fx, fx_auth_path);
-
     let fgx = f_eval[x + 8].residue();
     let fgx_auth_path = f_eval_merkle.trace(x + 8);
-    channel.commit_fgx(fgx, fgx_auth_path);
-
     let fggx = f_eval[x + 16].residue();
     let fggx_auth_path = f_eval_merkle.trace(x + 16);
-    channel.commit_fggx(fggx, fggx_auth_path);
-
     let cp0x = cp_evals[0][x].residue();
     let cp0x_auth_path = cp_eval_merkles[0].trace(x);
-    channel.commit_cp0x(cp0x, cp0x_auth_path);
+    channel.decommit_trace_fx(fx, fx_auth_path);
+    channel.decommit_trace_fgx(fgx, fgx_auth_path);
+    channel.decommit_trace_fggx(fggx, fggx_auth_path);
+    channel.decommit_trace_cp0x(cp0x, cp0x_auth_path);
 
-    // VERIFY:
+    //
+    // Decommit on FRI
+    for i in 0..10 {
+        let len = cp_domains[i].len();
+        let x = x % len;
+        let nx = (x + len/2) % len;
+        let cp_x = cp_evals[i][x].residue();
+        let cp_x_auth_path = cp_eval_merkles[i].trace(x);
+        let cp_nx = cp_evals[i][nx].residue();
+        let cp_nx_auth_path = cp_eval_merkles[i].trace(nx);
+        channel.decommit_fri_layer(cp_x, cp_x_auth_path, cp_nx, cp_nx_auth_path);
+    }
+
+    ///////////////////
+    // "Part 5"
+
+    // Verify proof
     let proof = channel.into_proof();
     assert_eq!(proof.verify(), Ok(()));
+
+    println!("Proof success!");
+    println!("  Proof size: {:?} bytes", proof.size());
 }
