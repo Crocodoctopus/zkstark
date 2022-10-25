@@ -1,26 +1,27 @@
 use crate::field::Gf;
+use crate::merkle::{AuthPath, Hash};
 use crate::proof::Proof;
 
 pub struct Channel {
-    state: [u8; 32],
+    state: Hash,
 
     // Commits
-    f_eval_merkle_root: Option<[u8; 32]>,
+    f_eval_merkle_root: Option<Hash>,
     pub alpha0: Option<u32>,
     pub alpha1: Option<u32>,
     pub alpha2: Option<u32>,
-    cp_eval_merkle_root: Option<[u8; 32]>,
+    cp_eval_merkle_root: Option<Hash>,
     pub betas: [Option<u32>; 10],
-    fri_eval_merkle_roots: [Option<[u8; 32]>; 10],
+    fri_eval_merkle_roots: [Option<Hash>; 10],
     fri_free_term: Option<u32>,
 
     // Decommit
     test_point: Option<u32>,
-    f_x: Option<(u32, Box<[[u8; 32]]>)>,
-    f_gx: Option<(u32, Box<[[u8; 32]]>)>,
-    f_ggx: Option<(u32, Box<[[u8; 32]]>)>,
-    cp0_x: Option<(u32, Box<[[u8; 32]]>)>,
-    fri_layers: Vec<(u32, Box<[[u8; 32]]>, u32, Box<[[u8; 32]]>)>,
+    f_x: Option<(u32, AuthPath)>,
+    f_gx: Option<(u32, AuthPath)>,
+    f_ggx: Option<(u32, AuthPath)>,
+    cp0_x: Option<(u32, AuthPath)>,
+    fri_layers: Vec<(u32, AuthPath, u32, AuthPath)>,
 }
 
 impl Channel {
@@ -93,36 +94,7 @@ impl Channel {
         }
     }
 
-    pub fn print(&self) {
-        println!("Channel output:");
-        println!("  // Commit");
-        println!(
-            "  f_eval_merkle_root: {:02X?}",
-            self.f_eval_merkle_root.unwrap()
-        );
-        println!("  alpha0: {:?}", self.alpha0.unwrap());
-        println!("  alpha1: {:?}", self.alpha1.unwrap());
-        println!("  alpha2: {:?}", self.alpha2.unwrap());
-        println!(
-            "  cp_eval_merkle_root: {:02X?}",
-            self.cp_eval_merkle_root.unwrap()
-        );
-        println!("  FRI:");
-        for i in 0..10 {
-            println!(
-                "    [cp{}] beta: {:?}; fri_eval_merkle_roots: {:02X?}",
-                i + 1,
-                self.betas[i].unwrap(),
-                self.fri_eval_merkle_roots[i].unwrap()
-            );
-        }
-        println!("  fri_free_term: {:?}", self.fri_free_term.unwrap());
-        println!("  // Decommit");
-        //println!("  f_x: {:?}", self.f_x.as_ref().unwrap());
-        // ... etc
-    }
-
-    pub fn commit_f_eval_merkle_root(&mut self, merkle: [u8; 32]) {
+    pub fn commit_f_eval_merkle_root(&mut self, merkle: Hash) {
         assert_eq!(self.f_eval_merkle_root, None);
         self.f_eval_merkle_root = Some(merkle);
     }
@@ -145,7 +117,7 @@ impl Channel {
         Gf::from(self.alpha2.unwrap())
     }
 
-    pub fn commit_cp_eval_merkle_root(&mut self, merkle: [u8; 32]) {
+    pub fn commit_cp_eval_merkle_root(&mut self, merkle: Hash) {
         assert_eq!(self.cp_eval_merkle_root, None);
         self.cp_eval_merkle_root = Some(merkle);
     }
@@ -156,7 +128,7 @@ impl Channel {
         Gf::from(self.betas[i].unwrap())
     }
 
-    pub fn commit_fri_eval_merkle_root(&mut self, i: usize, merkle: [u8; 32]) {
+    pub fn commit_fri_eval_merkle_root(&mut self, i: usize, merkle: Hash) {
         assert_eq!(self.fri_eval_merkle_roots[i], None);
         self.fri_eval_merkle_roots[i] = Some(merkle);
     }
@@ -172,22 +144,22 @@ impl Channel {
         3
     }
 
-    pub fn decommit_trace_f_x(&mut self, f_x: u32, f_x_auth_path: Box<[[u8; 32]]>) {
+    pub fn decommit_trace_f_x(&mut self, f_x: u32, f_x_auth_path: AuthPath) {
         assert_eq!(self.f_x, None);
         self.f_x = Some((f_x, f_x_auth_path));
     }
 
-    pub fn decommit_trace_f_gx(&mut self, f_gx: u32, f_gx_auth_path: Box<[[u8; 32]]>) {
+    pub fn decommit_trace_f_gx(&mut self, f_gx: u32, f_gx_auth_path: AuthPath) {
         assert_eq!(self.f_gx, None);
         self.f_gx = Some((f_gx, f_gx_auth_path));
     }
 
-    pub fn decommit_trace_f_ggx(&mut self, f_ggx: u32, f_ggx_auth_path: Box<[[u8; 32]]>) {
+    pub fn decommit_trace_f_ggx(&mut self, f_ggx: u32, f_ggx_auth_path: AuthPath) {
         assert_eq!(self.f_ggx, None);
         self.f_ggx = Some((f_ggx, f_ggx_auth_path));
     }
 
-    pub fn decommit_trace_cp0_x(&mut self, cp0_x: u32, cp0_x_auth_path: Box<[[u8; 32]]>) {
+    pub fn decommit_trace_cp0_x(&mut self, cp0_x: u32, cp0_x_auth_path: AuthPath) {
         assert_eq!(self.cp0_x, None);
         self.cp0_x = Some((cp0_x, cp0_x_auth_path));
     }
@@ -195,9 +167,9 @@ impl Channel {
     pub fn decommit_fri_layer(
         &mut self,
         cp_x: u32,
-        cp_x_auth_path: Box<[[u8; 32]]>,
+        cp_x_auth_path: AuthPath,
         cp_nx: u32,
-        cp_nx_auth_path: Box<[[u8; 32]]>,
+        cp_nx_auth_path: AuthPath,
     ) {
         self.fri_layers
             .push((cp_x, cp_x_auth_path, cp_nx, cp_nx_auth_path));

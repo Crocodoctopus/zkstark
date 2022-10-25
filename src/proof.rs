@@ -1,4 +1,4 @@
-use crate::merkle;
+use crate::merkle::{self, AuthPath, Hash};
 use crate::F;
 use num_traits::Pow;
 
@@ -11,26 +11,26 @@ pub enum ProofErr {
 
 pub struct Proof {
     // State
-    pub init_state: [u8; 32],
-    pub final_state: [u8; 32],
+    pub init_state: Hash,
+    pub final_state: Hash,
 
     // Commits (in order)
-    pub f_eval_merkle_root: [u8; 32],
+    pub f_eval_merkle_root: Hash,
     pub alpha0: u32,
     pub alpha1: u32,
     pub alpha2: u32,
-    pub cp_eval_merkle_root: [u8; 32],
+    pub cp_eval_merkle_root: Hash,
     pub betas: [u32; 10],
-    pub fri_eval_merkle_roots: [[u8; 32]; 10],
+    pub fri_eval_merkle_roots: [Hash; 10],
     pub fri_free_term: u32,
 
     // Decommits (in order)
     pub test_point: u32,
-    pub f_x: (u32, Box<[[u8; 32]]>),
-    pub f_gx: (u32, Box<[[u8; 32]]>),
-    pub f_ggx: (u32, Box<[[u8; 32]]>),
-    pub cp0_x: (u32, Box<[[u8; 32]]>),
-    pub fri_layers: Box<[(u32, Box<[[u8; 32]]>, u32, Box<[[u8; 32]]>)]>,
+    pub f_x: (u32, AuthPath),
+    pub f_gx: (u32, AuthPath),
+    pub f_ggx: (u32, AuthPath),
+    pub cp0_x: (u32, AuthPath),
+    pub fri_layers: Box<[(u32, AuthPath, u32, AuthPath)]>,
 }
 
 impl Proof {
@@ -123,17 +123,29 @@ impl Proof {
         assert_eq!(cp10_xx, calc_cp10_xx.residue());
 
         // Verify auth path for first layer
+        let mut size = 8192;
         let (cp0_x, cp0_x_auth_path, cp0_nx, cp0_nx_auth_path) = &self.fri_layers[0];
         assert_eq!(
-            merkle::compute_root_from_path(*cp0_x, self.test_point as usize, cp0_x_auth_path),
+            merkle::compute_root_from_path(
+                *cp0_x,
+                self.test_point as usize % size,
+                cp0_x_auth_path
+            ),
             self.cp_eval_merkle_root,
         );
+        assert_eq!(
+            merkle::compute_root_from_path(
+                *cp0_nx,
+                (self.test_point as usize + size / 2) % size,
+                cp0_nx_auth_path
+            ),
+            self.cp_eval_merkle_root,
+        );
+        size >>= 1;
 
         // Verify auth paths for last 9 layers
-        let mut size = 8192;
         for n in 1..10 {
             let (cp0_x, cp0_x_auth_path, cp0_nx, cp0_nx_auth_path) = &self.fri_layers[n];
-            size >>= 1;
             assert_eq!(
                 merkle::compute_root_from_path(
                     *cp0_x,
@@ -142,6 +154,15 @@ impl Proof {
                 ),
                 self.fri_eval_merkle_roots[n - 1],
             );
+            assert_eq!(
+                merkle::compute_root_from_path(
+                    *cp0_nx,
+                    (self.test_point as usize + size / 2) % size,
+                    cp0_nx_auth_path
+                ),
+                self.fri_eval_merkle_roots[n - 1],
+            );
+            size >>= 1;
         }
 
         // Proof success
@@ -154,14 +175,14 @@ impl Proof {
         let mut size = 0;
 
         size += size_of::<Self>();
-        size += self.f_x.1.len() * size_of::<[u8; 32]>();
-        size += self.f_gx.1.len() * size_of::<[u8; 32]>();
-        size += self.f_ggx.1.len() * size_of::<[u8; 32]>();
-        size += self.cp0_x.1.len() * size_of::<[u8; 32]>();
-        size += self.fri_layers.len() * size_of::<(u32, Box<[[u8; 32]]>, u32, Box<[[u8; 32]]>)>();
+        size += self.f_x.1.len() * size_of::<Hash>();
+        size += self.f_gx.1.len() * size_of::<Hash>();
+        size += self.f_ggx.1.len() * size_of::<Hash>();
+        size += self.cp0_x.1.len() * size_of::<Hash>();
+        size += self.fri_layers.len() * size_of::<(u32, AuthPath, u32, AuthPath)>();
         for data in self.fri_layers.iter() {
-            size += data.1.len() * size_of::<[u8; 32]>();
-            size += data.3.len() * size_of::<[u8; 32]>();
+            size += data.1.len() * size_of::<Hash>();
+            size += data.3.len() * size_of::<Hash>();
         }
 
         return size;

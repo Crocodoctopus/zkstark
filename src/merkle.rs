@@ -3,7 +3,11 @@ use sha2::Sha256;
 use std::ops::Index;
 
 #[derive(Clone, Debug)]
-pub struct Merkle(Box<[[u8; 32]]>);
+pub struct Merkle(Box<[Hash]>);
+
+// [TODO] Implement containers for these some day
+pub type Hash = [u8; 32];
+pub type AuthPath = Box<[Hash]>;
 
 impl Merkle {
     pub fn new(size: usize, data: impl Iterator<Item = u32>) -> Self {
@@ -16,7 +20,7 @@ impl Merkle {
         }
 
         // Create output vec
-        let mut out = vec![[0u8; 32]; size];
+        let mut out = vec![Hash::default(); size];
 
         // First round of hashing
         let mut offset = out.len() / 2;
@@ -45,7 +49,7 @@ impl Merkle {
         Self(out.into_boxed_slice())
     }
 
-    pub fn trace(&self, mut i: usize) -> Box<[[u8; 32]]> {
+    pub fn trace(&self, mut i: usize) -> AuthPath {
         let mut v = vec![];
         i += self.0.len() / 2;
 
@@ -66,13 +70,13 @@ impl Merkle {
 }
 
 impl Index<usize> for Merkle {
-    type Output = [u8; 32];
+    type Output = Hash;
     fn index(&self, i: usize) -> &Self::Output {
         &self.0[i]
     }
 }
 
-pub fn compute_root_from_path(element: u32, mut index: usize, path: &Box<[[u8; 32]]>) -> [u8; 32] {
+pub fn compute_root_from_path(element: u32, mut index: usize, path: &AuthPath) -> Hash {
     // BITS
     index += (1 << path.len()) - 1;
 
