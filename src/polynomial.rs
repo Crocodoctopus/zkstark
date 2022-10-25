@@ -396,7 +396,14 @@ fn fri_test() {
     type F = crate::field::Gf<101>;
 
     // Small FRI test
-    let p0 = Polynomial::from([F::from(5), F::from(3), F::from(7), F::from(2), F::from(1), F::from(3)]);
+    let p0 = Polynomial::from([
+        F::from(5),
+        F::from(3),
+        F::from(7),
+        F::from(2),
+        F::from(1),
+        F::from(3),
+    ]);
     let p1 = fri::<F>(&p0, F::from(3));
     assert_eq!(p1, Polynomial::from([F::from(18), F::from(23), F::from(6)]));
 
@@ -404,8 +411,8 @@ fn fri_test() {
     let input = 2;
     let x = F::from(input);
     let nx = -x;
-    let g_xx = (p0.solve(x) + p0.solve(nx))/F::from(2);
-    let h_xx = (p0.solve(x) - p0.solve(nx))/(x*2);
+    let g_xx = (p0.solve(x) + p0.solve(nx)) / F::from(2);
+    let h_xx = (p0.solve(x) - p0.solve(nx)) / (x * 2);
     let p1_xx = g_xx + 3 * h_xx;
     assert_eq!(p1_xx.residue(), p1.solve(x * x).residue());
 }

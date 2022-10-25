@@ -16,10 +16,10 @@ pub struct Channel {
 
     // Decommit
     test_point: Option<u32>,
-    fx: Option<(u32, Box<[[u8; 32]]>)>,
-    fgx: Option<(u32, Box<[[u8; 32]]>)>,
-    fggx: Option<(u32, Box<[[u8; 32]]>)>,
-    cp0x: Option<(u32, Box<[[u8; 32]]>)>,
+    f_x: Option<(u32, Box<[[u8; 32]]>)>,
+    f_gx: Option<(u32, Box<[[u8; 32]]>)>,
+    f_ggx: Option<(u32, Box<[[u8; 32]]>)>,
+    cp0_x: Option<(u32, Box<[[u8; 32]]>)>,
     fri_layers: Vec<(u32, Box<[[u8; 32]]>, u32, Box<[[u8; 32]]>)>,
 }
 
@@ -38,10 +38,10 @@ impl Channel {
             fri_free_term: None,
 
             test_point: None,
-            fx: None,
-            fgx: None,
-            fggx: None,
-            cp0x: None,
+            f_x: None,
+            f_gx: None,
+            f_ggx: None,
+            cp0_x: None,
             fri_layers: Vec::with_capacity(10),
         }
     }
@@ -85,10 +85,10 @@ impl Channel {
             fri_free_term: self.fri_free_term.unwrap(),
 
             test_point: self.test_point.unwrap(),
-            fx: self.fx.unwrap(),
-            fgx: self.fgx.unwrap(),
-            fggx: self.fggx.unwrap(),
-            cp0x: self.cp0x.unwrap(),
+            f_x: self.f_x.unwrap(),
+            f_gx: self.f_gx.unwrap(),
+            f_ggx: self.f_ggx.unwrap(),
+            cp0_x: self.cp0_x.unwrap(),
             fri_layers: self.fri_layers.into_boxed_slice(),
         }
     }
@@ -118,7 +118,7 @@ impl Channel {
         }
         println!("  fri_free_term: {:?}", self.fri_free_term.unwrap());
         println!("  // Decommit");
-        //println!("  fx: {:?}", self.fx.as_ref().unwrap());
+        //println!("  f_x: {:?}", self.f_x.as_ref().unwrap());
         // ... etc
     }
 
@@ -168,38 +168,38 @@ impl Channel {
 
     pub fn get_test_point(&mut self) -> u32 {
         assert_eq!(self.test_point, None);
-        self.test_point = Some(2);
-        2
+        self.test_point = Some(3);
+        3
     }
 
-    pub fn decommit_trace_fx(&mut self, fx: u32, fx_auth_path: Box<[[u8; 32]]>) {
-        assert_eq!(self.fx, None);
-        self.fx = Some((fx, fx_auth_path));
+    pub fn decommit_trace_f_x(&mut self, f_x: u32, f_x_auth_path: Box<[[u8; 32]]>) {
+        assert_eq!(self.f_x, None);
+        self.f_x = Some((f_x, f_x_auth_path));
     }
 
-    pub fn decommit_trace_fgx(&mut self, fgx: u32, fgx_auth_path: Box<[[u8; 32]]>) {
-        assert_eq!(self.fgx, None);
-        self.fgx = Some((fgx, fgx_auth_path));
+    pub fn decommit_trace_f_gx(&mut self, f_gx: u32, f_gx_auth_path: Box<[[u8; 32]]>) {
+        assert_eq!(self.f_gx, None);
+        self.f_gx = Some((f_gx, f_gx_auth_path));
     }
 
-    pub fn decommit_trace_fggx(&mut self, fggx: u32, fggx_auth_path: Box<[[u8; 32]]>) {
-        assert_eq!(self.fggx, None);
-        self.fggx = Some((fggx, fggx_auth_path));
+    pub fn decommit_trace_f_ggx(&mut self, f_ggx: u32, f_ggx_auth_path: Box<[[u8; 32]]>) {
+        assert_eq!(self.f_ggx, None);
+        self.f_ggx = Some((f_ggx, f_ggx_auth_path));
     }
 
-    pub fn decommit_trace_cp0x(&mut self, cp0x: u32, cp0x_auth_path: Box<[[u8; 32]]>) {
-        assert_eq!(self.cp0x, None);
-        self.cp0x = Some((cp0x, cp0x_auth_path));
+    pub fn decommit_trace_cp0_x(&mut self, cp0_x: u32, cp0_x_auth_path: Box<[[u8; 32]]>) {
+        assert_eq!(self.cp0_x, None);
+        self.cp0_x = Some((cp0_x, cp0_x_auth_path));
     }
 
     pub fn decommit_fri_layer(
         &mut self,
-        cpx: u32,
-        cpx_auth_path: Box<[[u8; 32]]>,
-        cpnx: u32,
-        cpnx_auth_path: Box<[[u8; 32]]>,
+        cp_x: u32,
+        cp_x_auth_path: Box<[[u8; 32]]>,
+        cp_nx: u32,
+        cp_nx_auth_path: Box<[[u8; 32]]>,
     ) {
         self.fri_layers
-            .push((cpx, cpx_auth_path, cpnx, cpnx_auth_path));
+            .push((cp_x, cp_x_auth_path, cp_nx, cp_nx_auth_path));
     }
 }

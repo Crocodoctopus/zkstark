@@ -225,25 +225,25 @@ fn main() {
     let x = channel.get_test_point() as usize;
 
     // Decommit on trace
-    let fx = f_eval[x].residue();
-    let fx_auth_path = f_eval_merkle.trace(x);
-    let fgx = f_eval[x + 8].residue();
-    let fgx_auth_path = f_eval_merkle.trace(x + 8);
-    let fggx = f_eval[x + 16].residue();
-    let fggx_auth_path = f_eval_merkle.trace(x + 16);
-    let cp0x = cp_evals[0][x].residue();
-    let cp0x_auth_path = cp_eval_merkles[0].trace(x);
-    channel.decommit_trace_fx(fx, fx_auth_path);
-    channel.decommit_trace_fgx(fgx, fgx_auth_path);
-    channel.decommit_trace_fggx(fggx, fggx_auth_path);
-    channel.decommit_trace_cp0x(cp0x, cp0x_auth_path);
+    let f_x = f_eval[x].residue();
+    let f_x_auth_path = f_eval_merkle.trace(x);
+    let f_gx = f_eval[x + 8].residue();
+    let f_gx_auth_path = f_eval_merkle.trace(x + 8);
+    let f_ggx = f_eval[x + 16].residue();
+    let f_ggx_auth_path = f_eval_merkle.trace(x + 16);
+    let cp0_x = cp_evals[0][x].residue();
+    let cp0_x_auth_path = cp_eval_merkles[0].trace(x);
+    channel.decommit_trace_f_x(f_x, f_x_auth_path);
+    channel.decommit_trace_f_gx(f_gx, f_gx_auth_path);
+    channel.decommit_trace_f_ggx(f_ggx, f_ggx_auth_path);
+    channel.decommit_trace_cp0_x(cp0_x, cp0_x_auth_path);
 
     //
     // Decommit on FRI
     for i in 0..10 {
         let len = cp_domains[i].len();
         let x = x % len;
-        let nx = (x + len/2) % len;
+        let nx = (x + len / 2) % len;
         let cp_x = cp_evals[i][x].residue();
         let cp_x_auth_path = cp_eval_merkles[i].trace(x);
         let cp_nx = cp_evals[i][nx].residue();
