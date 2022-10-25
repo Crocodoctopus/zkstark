@@ -1,1 +1,1 @@
-Experimenting with zkstarks, might try to create the world's first zero-knowledge NES, who knows? Currently following https://github.com/starkware-industries/stark101/tree/master/tutorial.
+Experimenting with zkstarks, following https://starkware.co/stark-101/, written in Rust, etc, etc. Mostly finished, just need to finish testing, and implement a random Channel. The stark101 tutorial doesn't cover the proof verifier, so I did my best.
