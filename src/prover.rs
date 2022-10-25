@@ -127,6 +127,10 @@ pub fn generate_proof(mut channel: Channel) -> Proof {
     // contraints, we know that this equation has roots = { g[n] | 0 < n < 1022 }. Thus, we can
     // divide by (x - g[1])(x - g[2])(x - g[3])...(x - g[1021]) to produce a polynomial of 
     // degree 1023.
+    //
+    // Note, the denom is not (x - g[1])(x - g[2])... like I said. This multiplcation is very
+    // expensive. Instead, start with precomputed (x^1024 - 1) and divide out the unwanted
+    // terms instead.
     let t0 = f_poly.clone().apply_const(g[2]);
     let t1 = f_poly.clone().apply_const(g[1]);
     let t1 = &t1 * &t1;
