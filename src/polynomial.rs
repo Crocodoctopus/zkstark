@@ -366,12 +366,20 @@ where
     };
 
     // Normalize
-    for (poly, &(tx, ty)) in bases.iter_mut().zip(points) {
-        *poly *= poly.solve(tx).inv() * ty;
+    for (poly, &(x, _)) in bases.iter_mut().zip(points) {
+        *poly *= poly.solve(x).inv();
     }
 
-    // Add all bases together
-    bases.into_iter().reduce(|acc, poly| &acc + &poly).unwrap()
+    // Combine
+    bases
+        .into_iter()
+        .zip(points)
+        .map(|(mut poly, &(_, y))| {
+            poly *= y;
+            poly
+        })
+        .reduce(|acc, poly| &acc + &poly)
+        .unwrap()
 }
 
 pub fn fri<T>(poly: &Polynomial<T>, b: T) -> Polynomial<T>
