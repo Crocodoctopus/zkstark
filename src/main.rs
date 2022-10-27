@@ -8,7 +8,7 @@ mod prover;
 use channel::Channel;
 use prover::generate_proof;
 
-// Represents an element of a prime field 
+// Represents an element of a prime field
 // All math is done mod 3221225473
 type F = field::Gf<3221225473>;
 

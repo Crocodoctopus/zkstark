@@ -1,6 +1,6 @@
 use crate::channel::Channel;
 use crate::merkle::Merkle;
-use crate::polynomial::{x, fri, lagrange, Polynomial};
+use crate::polynomial::{fri, lagrange, x, Polynomial};
 use crate::proof::Proof;
 use crate::F;
 use num_traits::Pow;
@@ -10,7 +10,7 @@ pub fn generate_proof(mut channel: Channel) -> Proof {
     // I'll do my best to explain things, at least how I understand them thus far.
     //
     // The proof is divided into 4 parts:
-    // 1) Generate a trace sequence, 
+    // 1) Generate a trace sequence,
     // 2) Create constraint polynomial to prove the trace evaluates correctly
     // 3) Perform FRI operator on constraint polynomial to prove is "almost" low degree
     // 4) Probe polynomials with test values to ensure all the math works out
@@ -82,7 +82,7 @@ pub fn generate_proof(mut channel: Channel) -> Proof {
     let f_eval_merkle_root = f_eval_merkle[0];
 
     // Commit f_eval merkle root
-    channel.commit_f_eval_merkle_root(f_eval_merkle_root);
+    channel.commit(f_eval_merkle_root);
 
     ///////////////////
     // Part 2:
@@ -95,7 +95,7 @@ pub fn generate_proof(mut channel: Channel) -> Proof {
     // -----------
     //  x - g[0]
     // So, f(x) is a degree 1022, and at g[0] is evaluates to a[0], by definition
-    // (we used lagrange precisely for this property). Therefor, f(x) - a[0] = 0 
+    // (we used lagrange precisely for this property). Therefor, f(x) - a[0] = 0
     // at g[0]. Therefor, g[0] is a root, and the first constraint divides evenly to
     // produce a polynomial of degree 1021.
     let numerator = &f_poly - &x(a[0], 0);
@@ -125,7 +125,7 @@ pub fn generate_proof(mut channel: Channel) -> Proof {
     // rule we get f(g*g*g[n]) = f(g*g[n]) + f(g[n])^2. Move some terms to the side and we get
     // f(g*g*x) - f(g*x) - f(x)^2 = 0 where x <- g[n] for each n. Just like the other 2
     // contraints, we know that this equation has roots = { g[n] | 0 < n < 1022 }. Thus, we can
-    // divide by (x - g[1])(x - g[2])(x - g[3])...(x - g[1021]) to produce a polynomial of 
+    // divide by (x - g[1])(x - g[2])(x - g[3])...(x - g[1021]) to produce a polynomial of
     // degree 1023.
     //
     // Note, the denom is not (x - g[1])(x - g[2])... like I said. This multiplcation is very
@@ -158,11 +158,11 @@ pub fn generate_proof(mut channel: Channel) -> Proof {
     assert_eq!(c1.solve(F::from(5772)).residue(), 232961446);
     assert_eq!(c2.solve(F::from(31415)).residue(), 2090051528);
 
-    // Generate composition polynomial, with a degree of at most 1023 (this is true because poly 
+    // Generate composition polynomial, with a degree of at most 1023 (this is true because poly
     // addition can't produce higher power terms)
-    let a0 = channel.get_alpha0();
-    let a1 = channel.get_alpha1();
-    let a2 = channel.get_alpha2();
+    let a0 = F::from(channel.get_u32());
+    let a1 = F::from(channel.get_u32());
+    let a2 = F::from(channel.get_u32());
     let cp_poly = c0 * x(a0, 0) + c1 * x(a1, 0) + c2 * x(a2, 0);
 
     // Assert composition polynomial resolves correctly
@@ -177,7 +177,7 @@ pub fn generate_proof(mut channel: Channel) -> Proof {
     let cp_eval_merkle_root = cp_eval_merkle[0];
 
     // Commit cp_eval merkle root
-    channel.commit_cp_eval_merkle_root(cp_eval_merkle_root);
+    channel.commit(cp_eval_merkle_root);
 
     ///////////////////
     // Part 3:
@@ -195,9 +195,9 @@ pub fn generate_proof(mut channel: Channel) -> Proof {
     let mut cp_eval_merkles: Vec<Merkle> = vec![cp_eval_merkle];
 
     // Perform FRI operation
-    for i in 0..10 {
+    for _ in 0..10 {
         // Get new fri poly
-        let beta = channel.get_beta(i);
+        let beta = F::from(channel.get_u32());
         let fri_poly = fri::<F>(cp_polys.last().unwrap(), beta);
 
         // Get new fri domain
@@ -221,7 +221,7 @@ pub fn generate_proof(mut channel: Channel) -> Proof {
         cp_eval_merkles.push(fri_eval_merkle);
 
         // Commit fri_eval merkle root
-        channel.commit_fri_eval_merkle_root(i, fri_eval_merkle_root);
+        channel.commit(fri_eval_merkle_root);
     }
 
     // Assert the degree of the FRI polynomials
@@ -251,7 +251,7 @@ pub fn generate_proof(mut channel: Channel) -> Proof {
     assert_eq!(cp_evals[10].len(), 8);
 
     // Commit free term of the final polynomial
-    channel.commit_fri_free_term(cp_polys[10][0].residue());
+    channel.commit(cp_polys[10][0].residue());
 
     ///////////////////
     // Part 4
@@ -260,7 +260,7 @@ pub fn generate_proof(mut channel: Channel) -> Proof {
     // the math between each stage follows. Again, this was mostly just going through the motions.
 
     // Get test point
-    let x = channel.get_test_point() as usize % (8192 - 16);
+    let x = channel.get_u32() as usize % (8192 - 16);
 
     // Decommit on trace
     let f_x = f_eval[x].residue();
@@ -271,10 +271,10 @@ pub fn generate_proof(mut channel: Channel) -> Proof {
     let f_ggx_auth_path = f_eval_merkle.trace(x + 16);
     let cp0_x = cp_evals[0][x].residue();
     let cp0_x_auth_path = cp_eval_merkles[0].trace(x);
-    channel.decommit_trace_f_x(f_x, f_x_auth_path);
-    channel.decommit_trace_f_gx(f_gx, f_gx_auth_path);
-    channel.decommit_trace_f_ggx(f_ggx, f_ggx_auth_path);
-    channel.decommit_trace_cp0_x(cp0_x, cp0_x_auth_path);
+    channel.commit((f_x, f_x_auth_path));
+    channel.commit((f_gx, f_gx_auth_path));
+    channel.commit((f_ggx, f_ggx_auth_path));
+    channel.commit((cp0_x, cp0_x_auth_path));
 
     // Decommit on FRI
     for i in 0..10 {
@@ -285,9 +285,9 @@ pub fn generate_proof(mut channel: Channel) -> Proof {
         let cp_x_auth_path = cp_eval_merkles[i].trace(x);
         let cp_nx = cp_evals[i][nx].residue();
         let cp_nx_auth_path = cp_eval_merkles[i].trace(nx);
-        channel.decommit_fri_layer(cp_x, cp_x_auth_path, cp_nx, cp_nx_auth_path);
+        channel.commit((cp_x, cp_nx, cp_x_auth_path, cp_nx_auth_path));
     }
 
     // Done
-    return channel.into_proof();
+    return channel.finalize();
 }

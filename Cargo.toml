@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 num-traits = "0.2.15"
-num-bigint = "0.4.3"
 num-modular = "0.5.1"
 sha2 = "0.10.6"
-hex-literal = "0.3.4"
+serde = "1.0.147"
+bincode = "1.3.3"
